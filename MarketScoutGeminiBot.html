@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בוט לניתוח מתחרים</title>
+    <!-- טעינת Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            direction: rtl;
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+        .table-container {
+            overflow-x: auto;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            border: 1px solid #e5e7eb;
+            padding: 1rem;
+            text-align: right;
+            vertical-align: top;
+        }
+        th {
+            background-color: #eef2ff;
+            font-weight: 600;
+            color: #4338ca;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+        .card {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            padding: 2.5rem;
+        }
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+        .input-field {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            font-size: 1rem;
+        }
+        .input-field:focus {
+            border-color: #4f46e5;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+        }
+        .btn-primary {
+            background-color: #4f46e5;
+            color: #ffffff;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+        }
+        .btn-primary:hover {
+            background-color: #4338ca;
+            transform: translateY(-2px);
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+            color: #ffffff;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6b7280;
+            font-style: italic;
+        }
+
+        #responseContent h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: #1f2937;
+        }
+
+        #responseContent p {
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body class="p-6">
+    <!-- רכיב ראשי - כרטיס הבקרה של הבוט -->
+    <div class="max-w-4xl mx-auto card space-y-6">
+        <h1 class="text-3xl font-bold text-center text-indigo-700">בוט לניתוח מתחרים</h1>
+        <p class="text-center text-gray-600">
+            הזן פרטים כדי לקבל השוואה וסיכום מקיף של המתחרים שלך.
+        </p>
+        <!-- אזורי קלט -->
+        <div class="space-y-4">
+            <div class="input-group">
+                <label for="mySolution" class="block text-sm font-medium text-gray-700">הפתרון המוצע (שלי):</label>
+                <input type="text" id="mySolution" class="input-field" placeholder="לדוגמה: Google Docs">
+            </div>
+            <div class="input-group">
+                <label for="competitorSolution" class="block text-sm font-medium text-gray-700">הפתרון המתחרה:</label>
+                <input type="text" id="competitorSolution" class="input-field" placeholder="לדוגמה: Microsoft Word">
+            </div>
+            <div class="input-group">
+                <label for="query" class="block text-sm font-medium text-gray-700">השאלה או נושא הניתוח:</label>
+                <textarea id="query" rows="3" class="input-field" placeholder="לדוגמה: השווה בין יכולות שיתוף הקבצים והמחיר"></textarea>
+            </div>
+        </div>
+        <!-- כפתורי פעולה -->
+        <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-4 sm:space-x-reverse">
+            <button id="askButton" class="btn btn-primary w-full sm:w-auto">
+                שאל את הבוט
+            </button>
+            <button id="clearButton" class="btn btn-secondary w-full sm:w-auto">
+                נקה נתונים
+            </button>
+        </div>
+        <!-- אזור תצוגה של התשובה -->
+        <div id="responseContainer" class="mt-8 hidden">
+            <div id="loadingIndicator" class="loader mb-4">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>הבוט חושב, בבקשה המתן...</span>
+            </div>
+
+            <div id="responseContent" class="mt-4 p-6 bg-gray-50 border border-gray-200 rounded-xl shadow-inner text-gray-800"></div>
+
+            <!-- כפתור ייצוא ל-Google Docs -->
+            <div id="exportContainer" class="mt-4 hidden">
+                <button id="exportButton" class="btn w-full sm:w-auto bg-green-600 text-white hover:bg-green-700">
+                    ייצא ל-Google Docs 📄
+                </button>
+            </div>
+        </div>
+    </div>
+    <script type="module">
+        // ייבוא ספריית Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // הגדרת משתנים גלובליים מהסביבה
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // אתחול Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        // כניסה למערכת
+        async function authenticateUser() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                console.log("Firebase auth successful.");
+            } catch (error) {
+                console.error("Firebase authentication failed:", error);
+            }
+        }
+
+        // קריאה לפונקציית האימות
+        authenticateUser();
+        // הגדרת אלמנטים מה-DOM
+        const askButton = document.getElementById('askButton');
+        const clearButton = document.getElementById('clearButton');
+        const exportButton = document.getElementById('exportButton');
+        const mySolutionInput = document.getElementById('mySolution');
+        const competitorSolutionInput = document.getElementById('competitorSolution');
+        const queryInput = document.getElementById('query');
+        const responseContainer = document.getElementById('responseContainer');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const responseContent = document.getElementById('responseContent');
+        const exportContainer = document.getElementById('exportContainer');
+
+        let lastResponseData = null;
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(text));
+            return div.innerHTML;
+        }
+
+        // פונקציה לביצוע קריאת API וטיפול בתשובה
+        async function fetchGeminiAnalysis() {
+            const mySolution = mySolutionInput.value.trim();
+            const competitorSolution = competitorSolutionInput.value.trim();
+            const userQuery = queryInput.value.trim();
+            if (!mySolution || !competitorSolution || !userQuery) {
+                responseContainer.classList.remove('hidden');
+                responseContent.innerHTML = '<p class="text-red-600">אנא מלא את כל השדות כדי לבצע ניתוח השוואתי.</p>';
+                return;
+            }
+
+            // הצגת מחוון טעינה
+            responseContainer.classList.remove('hidden');
+            loadingIndicator.classList.remove('hidden');
+            responseContent.innerHTML = '';
+            exportContainer.classList.add('hidden');
+
+            const apiKey = "AIzaSyCAdPH6sydEmnqBFyY-5SpWrQ5CfIuCU64"; // הכנס כאן את מפתח ה-API האישי שלך
+            if (!apiKey) {
+                responseContent.innerHTML = '<p class="text-red-600">שגיאה: חסר מפתח API. אנא הזן את המפתח בשדה המתאים בקוד.</p>';
+                loadingIndicator.classList.add('hidden');
+                return;
+            }
+            const systemPrompt = `אתה אנליסט עסקי מומחה. בצע השוואה מקיפה בין ${mySolution} לבין ${competitorSolution} על בסיס מידע עדכני מהאינטרנט. ספק את התוצאה בפורמט JSON קריא, המכיל שני מערכים: capabilities ו-prosAndCons, וכן פיסקת סיכום.
+            כל מערך יכיל אובייקטים עם תכונות משותפות (כמו 'feature' ו-'aspect' בהתאמה) ושמות הפתרונות כשדות נוספים.
+            בכל שדה של פתרון, תאר את המצב הרלוונטי.
+            השב אך ורק ב-JSON.`;
+
+            const payload = {
+                contents: [{ parts: [{ text: `השאלה לניתוח: ${userQuery}` }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "summary": { "type": "STRING" },
+                            "capabilities": {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        "feature": { "type": "STRING" },
+                                        "mySolution": { "type": "STRING" },
+                                        "competitorSolution": { "type": "STRING" }
+                                    }
+                                }
+                            },
+                            "prosAndCons": {
+                                type: "ARRAY",
+                                items: {
+                                    type: "OBJECT",
+                                    properties: {
+                                        "aspect": { "type": "STRING" },
+                                        "mySolution": { "type": "STRING" },
+                                        "competitorSolution": { "type": "STRING" }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (text) {
+                    try {
+                        const data = JSON.parse(text);
+                        lastResponseData = data;
+                        displayAnalysis(data, mySolution, competitorSolution);
+                        exportContainer.classList.remove('hidden');
+                    } catch (e) {
+                        responseContent.innerHTML = `<p class="text-red-600">אופס, הבוט לא הצליח להחזיר את הנתונים בפורמט תקין. נסה לנסח את השאלה מחדש.</p>`;
+                        exportContainer.classList.add('hidden');
+                    }
+                } else {
+                    responseContent.innerHTML = '<p class="text-red-600">אופס, לא התקבלה תשובה מהבוט. נסה שוב מאוחר יותר.</p>';
+                }
+            } catch (error) {
+                responseContent.innerHTML = `<p class="text-red-600">אירעה שגיאה: ${escapeHtml(error.message)}</p>`;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+        function displayAnalysis(data, mySolution, competitorSolution) {
+            let html = '';
+
+            // הוספת פיסקת הסיכום
+            if (data.summary) {
+                html += '<div class="mb-8">';
+                html += `<h2 class="text-2xl font-bold mb-4">סיכום הממצאים</h2>`;
+                html += `<p>${escapeHtml(data.summary)}</p>`;
+                html += '</div>';
+            }
+            // טבלת השוואת יכולות
+            if (data.capabilities && data.capabilities.length > 0) {
+                html += '<div class="table-container mb-8">';
+                html += `<h2 class="text-2xl font-bold mb-4">השוואת יכולות</h2>`;
+                html += '<table>';
+                html += `<thead><tr><th>יכולת</th><th>${escapeHtml(mySolution)}</th><th>${escapeHtml(competitorSolution)}</th></tr></thead>`;
+                html += '<tbody>';
+                data.capabilities.forEach(item => {
+                    html += `<tr><td>${escapeHtml(item.feature)}</td><td>${escapeHtml(item.mySolution)}</td><td>${escapeHtml(item.competitorSolution)}</td></tr>`;
+                });
+                html += '</tbody></table>';
+                html += '</div>';
+            }
+            // טבלת יתרונות וחסרונות
+            if (data.prosAndCons && data.prosAndCons.length > 0) {
+                html += '<div class="table-container">';
+                html += `<h2 class="text-2xl font-bold mb-4">יתרונות וחסרונות</h2>`;
+                html += '<table>';
+                html += `<thead><tr><th>היבט</th><th>${escapeHtml(mySolution)}</th><th>${escapeHtml(competitorSolution)}</th></tr></thead>`;
+                html += '<tbody>';
+                data.prosAndCons.forEach(item => {
+                    html += `<tr><td>${escapeHtml(item.aspect)}</td><td>${escapeHtml(item.mySolution)}</td><td>${escapeHtml(item.competitorSolution)}</td></tr>`;
+                });
+                html += '</tbody></table>';
+                html += '</div>';
+            }
+
+            responseContent.innerHTML = html;
+        }
+        // פונקציה שמנקה את השדות והתוצאות
+        function handleClearButton() {
+            mySolutionInput.value = '';
+            competitorSolutionInput.value = '';
+            queryInput.value = '';
+            responseContent.innerHTML = '';
+            responseContainer.classList.add('hidden');
+            exportContainer.classList.add('hidden');
+            lastResponseData = null;
+        }
+
+        // פונקציה לייצוא ל-Google Docs
+        function exportToGoogleDocs() {
+            if (!lastResponseData) return;
+            const mySolution = mySolutionInput.value.trim();
+            const competitorSolution = competitorSolutionInput.value.trim();
+            const cellStyle = 'padding:12px; border:1px solid #e5e7eb;';
+            let htmlContent = `<h1>ניתוח השוואתי: ${escapeHtml(mySolution)} מול ${escapeHtml(competitorSolution)}</h1>`;
+            if (lastResponseData.summary) {
+                htmlContent += `<h2>סיכום הממצאים</h2><p>${escapeHtml(lastResponseData.summary)}</p>`;
+            }
+            if (lastResponseData.capabilities && lastResponseData.capabilities.length > 0) {
+                htmlContent += '<h2>השוואת יכולות</h2>';
+                htmlContent += '<table style="width:100%; border-collapse:collapse;">';
+                htmlContent += `<thead style="background-color:#eef2ff;"><tr><th style="${cellStyle}">יכולת</th><th style="${cellStyle}">${escapeHtml(mySolution)}</th><th style="${cellStyle}">${escapeHtml(competitorSolution)}</th></tr></thead>`;
+                htmlContent += '<tbody>';
+                lastResponseData.capabilities.forEach(item => {
+                    htmlContent += `<tr><td style="${cellStyle}">${escapeHtml(item.feature)}</td><td style="${cellStyle}">${escapeHtml(item.mySolution)}</td><td style="${cellStyle}">${escapeHtml(item.competitorSolution)}</td></tr>`;
+                });
+                htmlContent += '</tbody></table>';
+            }
+            if (lastResponseData.prosAndCons && lastResponseData.prosAndCons.length > 0) {
+                htmlContent += '<h2>יתרונות וחסרונות</h2>';
+                htmlContent += '<table style="width:100%; border-collapse:collapse;">';
+                htmlContent += `<thead style="background-color:#eef2ff;"><tr><th style="${cellStyle}">היבט</th><th style="${cellStyle}">${escapeHtml(mySolution)}</th><th style="${cellStyle}">${escapeHtml(competitorSolution)}</th></tr></thead>`;
+                htmlContent += '<tbody>';
+                lastResponseData.prosAndCons.forEach(item => {
+                    htmlContent += `<tr><td style="${cellStyle}">${escapeHtml(item.aspect)}</td><td style="${cellStyle}">${escapeHtml(item.mySolution)}</td><td style="${cellStyle}">${escapeHtml(item.competitorSolution)}</td></tr>`;
+                });
+                htmlContent += '</tbody></table>';
+            }
+
+            const newWindow = window.open('about:blank', '_blank');
+            if (!newWindow) {
+                alert('הדפדפן חסם את פתיחת החלון. אנא אפשר חלונות קופצים עבור אתר זה.');
+                return;
+            }
+            const documentContent = `
+                <html>
+                    <head>
+                        <title>ניתוח מתחרים</title>
+                        <meta charset="UTF-8">
+                    </head>
+                    <body style="font-family: Arial, sans-serif; direction: rtl;">
+                        ${htmlContent}
+                    </body>
+                </html>
+            `;
+            newWindow.document.write(documentContent);
+            newWindow.document.close();
+            newWindow.focus();
+        }
+        // האזנה לאירועי לחיצה על הכפתורים
+        askButton.addEventListener('click', fetchGeminiAnalysis);
+        clearButton.addEventListener('click', handleClearButton);
+        exportButton.addEventListener('click', exportToGoogleDocs);
+
+        // האזנה לאירוע לחיצה על Enter בשדה הקלט
+        queryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                fetchGeminiAnalysis();
+            }
+        });
+    </script>
+</body>
+</html>
