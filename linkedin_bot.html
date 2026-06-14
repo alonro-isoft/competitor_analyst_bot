@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>לינקדין AI - ניתוח ופרסום</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Arial', sans-serif; background: #f3f4f6; }
+    .tab-btn.active { background: #4f46e5; color: #fff; }
+    .tab-btn { transition: all .2s; }
+    .card { background: #fff; border-radius: 1.25rem; box-shadow: 0 4px 16px rgba(0,0,0,.08); padding: 2rem; }
+    .input-field { width: 100%; padding: .7rem 1rem; border: 2px solid #e5e7eb; border-radius: .7rem; font-size: 1rem; transition: border-color .2s; }
+    .input-field:focus { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+    textarea.input-field { resize: vertical; }
+    .btn { padding: .65rem 1.5rem; border-radius: .7rem; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #4338ca; transform: translateY(-1px); }
+    .btn-linkedin { background: #0077b5; color: #fff; }
+    .btn-linkedin:hover:not(:disabled) { background: #005f8f; transform: translateY(-1px); }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-green:hover:not(:disabled) { background: #15803d; transform: translateY(-1px); }
+    .btn-outline { border: 2px solid #4f46e5; color: #4f46e5; background: transparent; }
+    .btn-outline:hover:not(:disabled) { background: #eef2ff; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+    .ai-result { background: #f8faff; border: 1px solid #c7d2fe; border-radius: .7rem; padding: 1.25rem; line-height: 1.7; white-space: pre-wrap; }
+    .profile-pic { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+    .char-counter { font-size: .85rem; }
+    .char-counter.warn { color: #d97706; }
+    .char-counter.over { color: #dc2626; }
+    .spinner { display: inline-block; width: 1.1rem; height: 1.1rem; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-left: .4rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .tag { display: inline-block; background: #eef2ff; color: #4338ca; border-radius: 999px; padding: .2rem .75rem; font-size: .8rem; margin: .15rem; }
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::after { content: ' ▼'; font-size: .75rem; }
+    details[open] > summary::after { content: ' ▲'; }
+    .post-history-item { border: 1px solid #e5e7eb; border-radius: .5rem; padding: .75rem; font-size: .9rem; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="text-center">
+    <h1 class="text-3xl font-bold text-indigo-700">לינקדין AI</h1>
+    <p class="text-gray-500 mt-1">ניתוח פרופיל · אסטרטגיית רשת · פרסום פוסטים</p>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <details id="settingsDetails">
+      <summary class="font-semibold text-gray-700 flex items-center gap-2">
+        <span>⚙️ הגדרות</span>
+      </summary>
+      <div class="mt-4 space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">LinkedIn Client ID <span class="text-xs text-gray-400">(מ-LinkedIn Developer App שלך)</span></label>
+          <input id="clientId" type="text" class="input-field" placeholder="86xxxxxxxxxxxxxxxx">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Gemini API Key</label>
+          <input id="geminiKey" type="password" class="input-field" placeholder="AIzaSy...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">כתובת השרת המקומי</label>
+          <input id="serverUrl" type="text" class="input-field" value="http://localhost:3000">
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+          <strong>הוראות הגדרה:</strong>
+          <ol class="list-decimal list-inside mt-1 space-y-1">
+            <li>צור LinkedIn App ב-<a href="https://www.linkedin.com/developers/" target="_blank" class="underline">linkedin.com/developers</a></li>
+            <li>הוסף Redirect URL: <code class="bg-blue-100 px-1 rounded">http://localhost:3000/auth/linkedin/callback</code></li>
+            <li>הוסף Scopes: <code class="bg-blue-100 px-1 rounded">openid profile email w_member_social</code></li>
+            <li>הכנס Client ID ו-Secret לקובץ <code class="bg-blue-100 px-1 rounded">.env</code></li>
+            <li>הרץ <code class="bg-blue-100 px-1 rounded">npm install && npm start</code></li>
+          </ol>
+        </div>
+        <button onclick="saveSettings()" class="btn btn-primary">שמור הגדרות</button>
+        <span id="settingsSaved" class="text-green-600 text-sm hidden">✓ נשמר</span>
+      </div>
+    </details>
+  </div>
+
+  <!-- Login / Logout bar -->
+  <div class="card flex items-center justify-between gap-3 flex-wrap">
+    <div id="loginStatus" class="flex items-center gap-3">
+      <div id="loginIndicator" class="w-3 h-3 rounded-full bg-gray-300"></div>
+      <span id="loginText" class="text-gray-500">לא מחובר ללינקדין</span>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button id="loginBtn" onclick="linkedinLogin()" class="btn btn-linkedin">
+        🔗 התחבר ללינקדין
+      </button>
+      <button id="logoutBtn" onclick="linkedinLogout()" class="btn btn-danger hidden">
+        התנתק
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="flex gap-2 bg-gray-100 p-1 rounded-xl">
+    <button onclick="showTab('profile')" id="tab-profile" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600 active">👤 פרופיל</button>
+    <button onclick="showTab('network')" id="tab-network" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600">🌐 רשת</button>
+    <button onclick="showTab('post')" id="tab-post" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600">✍️ פרסום</button>
+  </div>
+
+  <!-- ── TAB: PROFILE ── -->
+  <div id="tab-profile-content" class="space-y-4">
+
+    <!-- Profile card -->
+    <div class="card" id="profileCard">
+      <div id="profileEmpty" class="text-center text-gray-400 py-6">
+        התחבר ללינקדין כדי לראות את הפרופיל שלך
+      </div>
+      <div id="profileData" class="hidden space-y-4">
+        <div class="flex items-center gap-4">
+          <img id="profilePic" src="" alt="" class="profile-pic border-2 border-indigo-200" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 80\'><rect width=\'80\' height=\'80\' fill=\'%234f46e5\'/><text x=\'40\' y=\'52\' font-size=\'36\' text-anchor=\'middle\' fill=\'white\'>?</text></svg>'">
+          <div>
+            <h2 id="profileName" class="text-xl font-bold text-gray-800"></h2>
+            <p id="profileEmail" class="text-gray-500 text-sm"></p>
+            <p id="profileSub" class="text-xs text-gray-400 mt-1"></p>
+          </div>
+        </div>
+        <button onclick="fetchProfile()" class="btn btn-outline text-sm">🔄 רענן פרופיל</button>
+      </div>
+    </div>
+
+    <!-- AI Profile Analysis -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">🤖 ניתוח פרופיל עם AI</h3>
+      <p class="text-sm text-gray-500">נתח את הפרופיל שלך ב-LinkedIn וקבל המלצות מותאמות אישית</p>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">תחום עיסוק / תפקיד (אופציונלי)</label>
+        <input id="profileRole" type="text" class="input-field" placeholder="לדוגמה: מנהל מוצר, B2B SaaS">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">מטרות LinkedIn (אופציונלי)</label>
+        <textarea id="profileGoals" rows="2" class="input-field" placeholder="לדוגמה: מחפש עבודה, גיוס לידים, בניית מיתוג אישי"></textarea>
+      </div>
+      <button id="analyzeProfileBtn" onclick="analyzeProfile()" class="btn btn-primary" disabled>
+        נתח פרופיל
+      </button>
+      <div id="profileAnalysisResult" class="hidden">
+        <div id="profileAnalysisText" class="ai-result mt-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: NETWORK ── -->
+  <div id="tab-network-content" class="space-y-4 hidden">
+
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">🌐 אסטרטגיית רשת מותאמת אישית</h3>
+      <p class="text-sm text-gray-500">קבל המלצות לבניית הרשת המקצועית שלך על בסיס הפרופיל</p>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">עם מי תרצה להתחבר?</label>
+        <textarea id="networkTarget" rows="2" class="input-field" placeholder="לדוגמה: מנהלי שיווק בחברות SaaS, משקיעים בתחום הבריאות"></textarea>
+      </div>
+      <button id="networkStrategyBtn" onclick="generateNetworkStrategy()" class="btn btn-primary" disabled>
+        צור אסטרטגיית רשת
+      </button>
+      <div id="networkStrategyResult" class="hidden">
+        <div id="networkStrategyText" class="ai-result mt-3"></div>
+      </div>
+    </div>
+
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">💬 מחולל הודעות חיבור</h3>
+      <p class="text-sm text-gray-500">צור הודעת חיבור מותאמת אישית לאנשים שתרצה להוסיף לרשת</p>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">פרטי האדם שאיתו תרצה להתחבר</label>
+        <textarea id="connectionPersonInfo" rows="2" class="input-field" placeholder="לדוגמה: CTO בחברת FinTech, פגשנו בכנס TechCon 2024"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">הסיבה לחיבור</label>
+        <input id="connectionReason" type="text" class="input-field" placeholder="לדוגמה: שיתוף פעולה עסקי, ייעוץ, למידה מניסיון">
+      </div>
+      <button id="connectionMsgBtn" onclick="generateConnectionMessage()" class="btn btn-primary" disabled>
+        צור הודעת חיבור
+      </button>
+      <div id="connectionMsgResult" class="hidden">
+        <div id="connectionMsgText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('connectionMsgText')" class="btn btn-outline text-sm mt-2">📋 העתק</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: POST ── -->
+  <div id="tab-post-content" class="space-y-4 hidden">
+
+    <!-- AI Post Ideas -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">💡 רעיונות לפוסטים</h3>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">נושא / תחום</label>
+        <input id="postTopic" type="text" class="input-field" placeholder="לדוגמה: AI בשוק B2B, ניהול צוותים, טרנדים בתעשייה">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">סגנון</label>
+        <select id="postStyle" class="input-field">
+          <option value="מקצועי ואינפורמטיבי">מקצועי ואינפורמטיבי</option>
+          <option value="סיפור אישי ומעורר השראה">סיפור אישי ומעורר השראה</option>
+          <option value="שאלה לדיון">שאלה לדיון</option>
+          <option value="רשימת טיפים">רשימת טיפים</option>
+          <option value="תובנה שנויה במחלוקת">תובנה שנויה במחלוקת</option>
+        </select>
+      </div>
+      <button id="postIdeasBtn" onclick="generatePostIdeas()" class="btn btn-primary" disabled>
+        צור רעיונות
+      </button>
+      <div id="postIdeasResult" class="hidden">
+        <div id="postIdeasText" class="ai-result mt-3"></div>
+      </div>
+    </div>
+
+    <!-- Post Composer -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">✍️ כתיבת פוסט</h3>
+      <div class="space-y-1">
+        <textarea id="postContent" rows="7" class="input-field" placeholder="כתוב כאן את הפוסט שלך..." oninput="updateCharCounter()"></textarea>
+        <div class="flex justify-between items-center">
+          <span id="charCounter" class="char-counter text-gray-400">0 / 3000</span>
+          <button onclick="improvePost()" id="improvePostBtn" class="btn btn-outline text-sm" disabled>🪄 שפר עם AI</button>
+        </div>
+      </div>
+      <div id="improvedPostResult" class="hidden space-y-2">
+        <p class="text-sm font-medium text-gray-600">גרסה משופרת:</p>
+        <div id="improvedPostText" class="ai-result"></div>
+        <button onclick="useImprovedPost()" class="btn btn-outline text-sm">← השתמש בגרסה זו</button>
+      </div>
+      <div class="flex gap-2 flex-wrap">
+        <button id="publishBtn" onclick="publishPost()" class="btn btn-green" disabled>
+          🚀 פרסם ב-LinkedIn
+        </button>
+        <button onclick="clearPost()" class="btn btn-outline text-sm">נקה</button>
+      </div>
+      <div id="publishStatus" class="hidden"></div>
+    </div>
+
+    <!-- Post History -->
+    <div class="card space-y-3">
+      <div class="flex justify-between items-center">
+        <h3 class="font-semibold text-gray-700">📜 היסטוריית פוסטים</h3>
+        <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500">מחק הכל</button>
+      </div>
+      <div id="postHistory" class="space-y-2">
+        <p class="text-gray-400 text-sm">אין פוסטים עדיין</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+let accessToken = localStorage.getItem('li_access_token') || null;
+let userProfile = JSON.parse(localStorage.getItem('li_profile') || 'null');
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+function init() {
+  document.getElementById('clientId').value = localStorage.getItem('li_client_id') || '';
+  document.getElementById('geminiKey').value = localStorage.getItem('gemini_key') || '';
+  document.getElementById('serverUrl').value = localStorage.getItem('server_url') || 'http://localhost:3000';
+  updateLoginUI();
+  renderPostHistory();
+  if (accessToken && !userProfile) fetchProfile();
+}
+
+function saveSettings() {
+  localStorage.setItem('li_client_id', document.getElementById('clientId').value.trim());
+  localStorage.setItem('gemini_key', document.getElementById('geminiKey').value.trim());
+  localStorage.setItem('server_url', document.getElementById('serverUrl').value.trim());
+  const saved = document.getElementById('settingsSaved');
+  saved.classList.remove('hidden');
+  setTimeout(() => saved.classList.add('hidden'), 2000);
+}
+
+// ─── Tab navigation ──────────────────────────────────────────────────────────
+function showTab(name) {
+  ['profile', 'network', 'post'].forEach(t => {
+    document.getElementById(`tab-${t}-content`).classList.toggle('hidden', t !== name);
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+    document.getElementById(`tab-${t}`).classList.toggle('text-gray-600', t !== name);
+  });
+}
+
+// ─── LinkedIn OAuth ──────────────────────────────────────────────────────────
+function linkedinLogin() {
+  const clientId = localStorage.getItem('li_client_id') || document.getElementById('clientId').value.trim();
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  if (!clientId) {
+    alert('הכנס Client ID בהגדרות תחילה');
+    document.getElementById('settingsDetails').open = true;
+    return;
+  }
+
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('li_oauth_state', state);
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: `${serverUrl}/auth/linkedin/callback`,
+    state,
+    scope: 'openid profile email w_member_social',
+  });
+
+  const popup = window.open(
+    `https://www.linkedin.com/oauth/v2/authorization?${params}`,
+    'linkedin_auth',
+    'width=600,height=700,left=200,top=100'
+  );
+
+  if (!popup) {
+    alert('חסום חלון פופ-אפ — אנא אפשר פופ-אפ עבור דף זה ונסה שוב');
+    return;
+  }
+
+  window.addEventListener('message', handleLinkedInMessage, { once: true });
+}
+
+async function handleLinkedInMessage(event) {
+  const { type, code, state, error } = event.data || {};
+  if (type !== 'LINKEDIN_AUTH') return;
+
+  if (error) {
+    alert(`שגיאה בחיבור: ${error}`);
+    return;
+  }
+
+  const savedState = sessionStorage.getItem('li_oauth_state');
+  if (state !== savedState) {
+    alert('שגיאת אבטחה: state לא תואם. נסה שוב.');
+    return;
+  }
+
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  try {
+    setLoginBtnLoading(true);
+    const res = await fetch(`${serverUrl}/api/linkedin/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Token exchange failed');
+
+    accessToken = data.access_token;
+    localStorage.setItem('li_access_token', accessToken);
+    await fetchProfile();
+  } catch (err) {
+    alert(`שגיאה בהתחברות: ${err.message}`);
+  } finally {
+    setLoginBtnLoading(false);
+  }
+}
+
+function linkedinLogout() {
+  accessToken = null;
+  userProfile = null;
+  localStorage.removeItem('li_access_token');
+  localStorage.removeItem('li_profile');
+  updateLoginUI();
+}
+
+function setLoginBtnLoading(loading) {
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML = loading
+    ? '🔗 מתחבר...<span class="spinner"></span>'
+    : '🔗 התחבר ללינקדין';
+  btn.disabled = loading;
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+async function fetchProfile() {
+  if (!accessToken) return;
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  try {
+    const res = await fetch(`${serverUrl}/api/linkedin/profile`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      if (res.status === 401) { linkedinLogout(); return; }
+      throw new Error(await res.text());
+    }
+    userProfile = await res.json();
+    localStorage.setItem('li_profile', JSON.stringify(userProfile));
+    updateLoginUI();
+  } catch (err) {
+    console.error('Profile fetch error:', err);
+  }
+}
+
+function updateLoginUI() {
+  const loggedIn = !!accessToken && !!userProfile;
+  document.getElementById('loginBtn').classList.toggle('hidden', loggedIn);
+  document.getElementById('logoutBtn').classList.toggle('hidden', !loggedIn);
+  document.getElementById('loginIndicator').className =
+    `w-3 h-3 rounded-full ${loggedIn ? 'bg-green-500' : 'bg-gray-300'}`;
+
+  document.getElementById('loginText').textContent = loggedIn
+    ? `מחובר כ-${userProfile.name || userProfile.given_name + ' ' + (userProfile.family_name || '')}`
+    : 'לא מחובר ללינקדין';
+
+  const needsAuth = !loggedIn;
+  ['analyzeProfileBtn', 'networkStrategyBtn', 'connectionMsgBtn',
+   'postIdeasBtn', 'publishBtn', 'improvePostBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = needsAuth;
+  });
+
+  document.getElementById('profileEmpty').classList.toggle('hidden', loggedIn);
+  document.getElementById('profileData').classList.toggle('hidden', !loggedIn);
+
+  if (loggedIn && userProfile) {
+    document.getElementById('profilePic').src = userProfile.picture || '';
+    document.getElementById('profileName').textContent =
+      userProfile.name || `${userProfile.given_name || ''} ${userProfile.family_name || ''}`;
+    document.getElementById('profileEmail').textContent = userProfile.email || '';
+    document.getElementById('profileSub').textContent = `LinkedIn ID: ${userProfile.sub || ''}`;
+  }
+}
+
+// ─── AI helpers ──────────────────────────────────────────────────────────────
+async function callGemini(prompt) {
+  const apiKey = localStorage.getItem('gemini_key') || document.getElementById('geminiKey').value.trim();
+  if (!apiKey) throw new Error('חסר Gemini API Key — הכנס בהגדרות');
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Gemini API error');
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'לא התקבלה תשובה';
+}
+
+function profileContext() {
+  if (!userProfile) return '';
+  return `שם: ${userProfile.name || ''}, אימייל: ${userProfile.email || ''}`;
+}
+
+// ─── Profile Analysis ─────────────────────────────────────────────────────────
+async function analyzeProfile() {
+  const role = document.getElementById('profileRole').value.trim();
+  const goals = document.getElementById('profileGoals').value.trim();
+  const btn = document.getElementById('analyzeProfileBtn');
+  const result = document.getElementById('profileAnalysisResult');
+  const text = document.getElementById('profileAnalysisText');
+
+  btn.disabled = true;
+  btn.innerHTML = 'מנתח...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `אתה יועץ LinkedIn בכיר. נתח את הפרופיל הבא ותן המלצות מפורטות בעברית.
+
+פרטי הפרופיל:
+${profileContext()}
+${role ? `תחום עיסוק: ${role}` : ''}
+${goals ? `מטרות LinkedIn: ${goals}` : ''}
+
+ספק ניתוח מקיף הכולל:
+1. **חוזקות הפרופיל** — מה עובד טוב
+2. **נקודות לשיפור** — מה חסר או יכול להיות טוב יותר
+3. **המלצות לכותרת (Headline)** — 3 הצעות ספציפיות
+4. **המלצות לסעיף "אודות" (About)** — טיפים לכתיבה
+5. **אסטרטגיית תוכן** — סוגי פוסטים שיתאימו לך
+6. **ציון כולל** — ציון מ-1 עד 10 עם הסבר`;
+
+  try {
+    const answer = await callGemini(prompt);
+    text.textContent = answer;
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `שגיאה: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'נתח פרופיל';
+  }
+}
+
+// ─── Network Strategy ─────────────────────────────────────────────────────────
+async function generateNetworkStrategy() {
+  const target = document.getElementById('networkTarget').value.trim();
+  const btn = document.getElementById('networkStrategyBtn');
+  const result = document.getElementById('networkStrategyResult');
+  const text = document.getElementById('networkStrategyText');
+
+  btn.disabled = true;
+  btn.innerHTML = 'מחשב...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `אתה מומחה לנטוורקינג מקצועי ב-LinkedIn. בנה אסטרטגיית רשת מפורטת בעברית.
+
+פרופיל המשתמש:
+${profileContext()}
+${target ? `קהל יעד: ${target}` : ''}
+
+צור תכנית אסטרטגית הכוללת:
+1. **פרסונות קשר** — דפוסי אנשים שכדאי לחפש ומדוע
+2. **כיצד למצוא אותם** — חיפושים, קבוצות, אירועים ב-LinkedIn
+3. **תדירות פעילות** — כמה בקשות חיבור ביום/שבוע
+4. **תוכן שימשוך את הרשת** — נושאים שיעניינו את קהל היעד
+5. **מדדי הצלחה** — איך לדעת שהאסטרטגיה עובדת
+6. **שלבים ב-30/60/90 ימים** — תכנית פעולה ספציפית`;
+
+  try {
+    const answer = await callGemini(prompt);
+    text.textContent = answer;
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `שגיאה: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'צור אסטרטגיית רשת';
+  }
+}
+
+// ─── Connection Message ───────────────────────────────────────────────────────
+async function generateConnectionMessage() {
+  const personInfo = document.getElementById('connectionPersonInfo').value.trim();
+  const reason = document.getElementById('connectionReason').value.trim();
+  const btn = document.getElementById('connectionMsgBtn');
+  const result = document.getElementById('connectionMsgResult');
+  const text = document.getElementById('connectionMsgText');
+
+  if (!personInfo) { alert('הכנס פרטים על האדם שאיתו תרצה להתחבר'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = 'יוצר...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `כתוב הודעת חיבור LinkedIn בעברית (עד 300 תווים — מגבלת LinkedIn).
+
+השולח:
+${profileContext()}
+
+האדם שאיתו רוצים להתחבר:
+${personInfo}
+
+סיבת החיבור: ${reason || 'לא צוין'}
+
+כתוב 3 גרסאות להודעת חיבור — קצרות, אישיות, ואמינות. כל גרסה בשורה נפרדת עם מספור.
+ודא שכל הודעה עד 300 תווים.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    text.textContent = answer;
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `שגיאה: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'צור הודעת חיבור';
+  }
+}
+
+// ─── Post Ideas ───────────────────────────────────────────────────────────────
+async function generatePostIdeas() {
+  const topic = document.getElementById('postTopic').value.trim();
+  const style = document.getElementById('postStyle').value;
+  const btn = document.getElementById('postIdeasBtn');
+  const result = document.getElementById('postIdeasResult');
+  const text = document.getElementById('postIdeasText');
+
+  btn.disabled = true;
+  btn.innerHTML = 'יוצר...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `אתה מומחה לתוכן LinkedIn. צור 5 רעיונות לפוסטים בעברית.
+
+פרופיל הכותב:
+${profileContext()}
+${topic ? `נושא: ${topic}` : ''}
+סגנון רצוי: ${style}
+
+לכל רעיון ספק:
+- **כותרת/פתיחה** (2-3 שורות ראשונות שימשכו תשומת לב)
+- **מבנה הפוסט** (נקודות עיקריות)
+- **Call to Action** (שאלה לסיום שתעורר דיון)
+
+הפרד בין הרעיונות בשורות ריקות. כתוב בסגנון ישיר וקצר.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    text.textContent = answer;
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `שגיאה: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'צור רעיונות';
+  }
+}
+
+// ─── Post Composer ────────────────────────────────────────────────────────────
+function updateCharCounter() {
+  const len = document.getElementById('postContent').value.length;
+  const counter = document.getElementById('charCounter');
+  counter.textContent = `${len} / 3000`;
+  counter.className = 'char-counter ' + (len > 3000 ? 'over' : len > 2500 ? 'warn' : 'text-gray-400');
+}
+
+async function improvePost() {
+  const content = document.getElementById('postContent').value.trim();
+  if (!content) { alert('כתוב פוסט תחילה'); return; }
+
+  const btn = document.getElementById('improvePostBtn');
+  const result = document.getElementById('improvedPostResult');
+  const text = document.getElementById('improvedPostText');
+
+  btn.disabled = true;
+  btn.innerHTML = '🪄 משפר...';
+  result.classList.add('hidden');
+
+  const prompt = `שפר את פוסט LinkedIn הבא בעברית. שמור על הרעיון המרכזי אך שפר:
+- הפתיחה (hook חזק בשורה הראשונה)
+- הניסוח (קצר, ישיר, ברור)
+- המבנה (שורות קצרות, רווחים בין רעיונות)
+- הסיום (CTA ברור)
+- לא יותר מ-2800 תווים
+
+פוסט מקורי:
+${content}
+
+החזר רק את הפוסט המשופר, ללא הסברים.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    text.textContent = answer;
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `שגיאה: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🪄 שפר עם AI';
+  }
+}
+
+function useImprovedPost() {
+  const improved = document.getElementById('improvedPostText').textContent;
+  document.getElementById('postContent').value = improved;
+  updateCharCounter();
+  document.getElementById('improvedPostResult').classList.add('hidden');
+}
+
+function clearPost() {
+  document.getElementById('postContent').value = '';
+  updateCharCounter();
+  document.getElementById('improvedPostResult').classList.add('hidden');
+  document.getElementById('publishStatus').classList.add('hidden');
+}
+
+async function publishPost() {
+  const text = document.getElementById('postContent').value.trim();
+  if (!text) { alert('כתוב פוסט תחילה'); return; }
+  if (text.length > 3000) { alert('הפוסט ארוך מדי — מקסימום 3000 תווים'); return; }
+  if (!userProfile?.sub) { alert('לא ניתן לקבל את פרטי המשתמש. נסה להתחבר מחדש.'); return; }
+
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  const btn = document.getElementById('publishBtn');
+  const statusEl = document.getElementById('publishStatus');
+
+  btn.disabled = true;
+  btn.innerHTML = '🚀 מפרסם...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  statusEl.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${serverUrl}/api/linkedin/post`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        text,
+        authorUrn: `urn:li:person:${userProfile.sub}`,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data.error));
+
+    statusEl.className = 'p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm';
+    statusEl.textContent = '✓ הפוסט פורסם בהצלחה ב-LinkedIn!';
+    statusEl.classList.remove('hidden');
+
+    addToPostHistory(text);
+    clearPost();
+  } catch (err) {
+    statusEl.className = 'p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm';
+    statusEl.textContent = `שגיאה בפרסום: ${err.message}`;
+    statusEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🚀 פרסם ב-LinkedIn';
+  }
+}
+
+// ─── Post History ─────────────────────────────────────────────────────────────
+function addToPostHistory(text) {
+  const history = JSON.parse(localStorage.getItem('post_history') || '[]');
+  history.unshift({ text, date: new Date().toISOString() });
+  if (history.length > 20) history.pop();
+  localStorage.setItem('post_history', JSON.stringify(history));
+  renderPostHistory();
+}
+
+function renderPostHistory() {
+  const history = JSON.parse(localStorage.getItem('post_history') || '[]');
+  const container = document.getElementById('postHistory');
+  if (!history.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm">אין פוסטים עדיין</p>';
+    return;
+  }
+  container.innerHTML = history.map((item, i) => `
+    <div class="post-history-item">
+      <p class="text-xs text-gray-400 mb-1">${new Date(item.date).toLocaleString('he-IL')}</p>
+      <p class="text-gray-700 line-clamp-3">${item.text.slice(0, 120)}${item.text.length > 120 ? '...' : ''}</p>
+      <button onclick="reusePost(${i})" class="text-indigo-500 text-xs mt-1 hover:underline">השתמש שוב</button>
+    </div>
+  `).join('');
+}
+
+function reusePost(index) {
+  const history = JSON.parse(localStorage.getItem('post_history') || '[]');
+  if (history[index]) {
+    document.getElementById('postContent').value = history[index].text;
+    updateCharCounter();
+    showTab('post');
+  }
+}
+
+function clearHistory() {
+  if (confirm('למחוק את כל היסטוריית הפוסטים?')) {
+    localStorage.removeItem('post_history');
+    renderPostHistory();
+  }
+}
+
+// ─── Clipboard ────────────────────────────────────────────────────────────────
+function copyToClipboard(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = '✓ הועתק!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
