@@ -25,7 +25,14 @@
     .btn-outline:hover:not(:disabled) { background: #eef2ff; }
     .btn-danger { background: #dc2626; color: #fff; }
     .btn-danger:hover:not(:disabled) { background: #b91c1c; }
-    .ai-result { background: #f8faff; border: 1px solid #c7d2fe; border-radius: .7rem; padding: 1.25rem; line-height: 1.8; white-space: pre-wrap; max-height: 600px; overflow-y: auto; font-size: 0.95rem; word-break: break-word; }
+    .ai-result { background: #f8faff; border: 1px solid #c7d2fe; border-radius: .7rem; padding: 1.5rem; line-height: 1.9; font-size: 0.97rem; word-break: break-word; }
+    .ai-result h1,.ai-result h2,.ai-result h3 { font-weight: 700; margin: 1rem 0 .4rem; color: #1f2937; }
+    .ai-result h2 { font-size: 1.1rem; color: #4338ca; }
+    .ai-result h3 { font-size: 1rem; color: #374151; }
+    .ai-result strong { font-weight: 700; color: #1f2937; }
+    .ai-result ul,.ai-result ol { padding-right: 1.5rem; margin: .5rem 0; }
+    .ai-result li { margin: .25rem 0; }
+    .ai-result p { margin: .6rem 0; }
     .profile-pic { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
     .char-counter { font-size: .85rem; }
     .char-counter.warn { color: #d97706; }
@@ -259,6 +266,26 @@
 </div>
 
 <script>
+// ─── Markdown renderer ───────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^\* (.+)$/gm, '<li>$1</li>')
+    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
+    .replace(/\n\n+/g, '</p><p>')
+    .replace(/^(?!<[hul])/gm, '')
+    .replace(/(.+)/s, '<p>$1</p>');
+}
+
+function setAiResult(elementId, text) {
+  document.getElementById(elementId).innerHTML = renderMarkdown(text);
+}
+
 // ─── State ───────────────────────────────────────────────────────────────────
 let accessToken = localStorage.getItem('li_access_token') || null;
 let userProfile = JSON.parse(localStorage.getItem('li_profile') || 'null');
@@ -486,7 +513,7 @@ ${goals ? `מטרות LinkedIn: ${goals}` : ''}
 
   try {
     const answer = await callGemini(prompt);
-    text.textContent = answer;
+    setAiResult('profileAnalysisText', answer);
     result.classList.remove('hidden');
   } catch (err) {
     text.textContent = `שגיאה: ${err.message}`;
@@ -524,7 +551,7 @@ ${target ? `קהל יעד: ${target}` : ''}
 
   try {
     const answer = await callGemini(prompt);
-    text.textContent = answer;
+    setAiResult('networkStrategyText', answer);
     result.classList.remove('hidden');
   } catch (err) {
     text.textContent = `שגיאה: ${err.message}`;
@@ -564,7 +591,7 @@ ${personInfo}
 
   try {
     const answer = await callGemini(prompt);
-    text.textContent = answer;
+    setAiResult('connectionMsgText', answer);
     result.classList.remove('hidden');
   } catch (err) {
     text.textContent = `שגיאה: ${err.message}`;
@@ -603,7 +630,7 @@ ${topic ? `נושא: ${topic}` : ''}
 
   try {
     const answer = await callGemini(prompt);
-    text.textContent = answer;
+    setAiResult('postIdeasText', answer);
     result.classList.remove('hidden');
   } catch (err) {
     text.textContent = `שגיאה: ${err.message}`;
@@ -648,7 +675,7 @@ ${content}
 
   try {
     const answer = await callGemini(prompt);
-    text.textContent = answer;
+    setAiResult('improvedPostText', answer);
     result.classList.remove('hidden');
   } catch (err) {
     text.textContent = `שגיאה: ${err.message}`;
