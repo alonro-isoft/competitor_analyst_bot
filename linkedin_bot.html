@@ -25,7 +25,7 @@
     .btn-outline:hover:not(:disabled) { background: #eef2ff; }
     .btn-danger { background: #dc2626; color: #fff; }
     .btn-danger:hover:not(:disabled) { background: #b91c1c; }
-    .ai-result { background: #f8faff; border: 1px solid #c7d2fe; border-radius: .7rem; padding: 1.25rem; line-height: 1.7; white-space: pre-wrap; }
+    .ai-result { background: #f8faff; border: 1px solid #c7d2fe; border-radius: .7rem; padding: 1.25rem; line-height: 1.8; white-space: pre-wrap; max-height: 600px; overflow-y: auto; font-size: 0.95rem; word-break: break-word; }
     .profile-pic { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
     .char-counter { font-size: .85rem; }
     .char-counter.warn { color: #d97706; }
@@ -145,6 +145,7 @@
       </button>
       <div id="profileAnalysisResult" class="hidden">
         <div id="profileAnalysisText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('profileAnalysisText')" class="btn btn-outline text-sm mt-2">📋 העתק</button>
       </div>
     </div>
   </div>
@@ -164,6 +165,7 @@
       </button>
       <div id="networkStrategyResult" class="hidden">
         <div id="networkStrategyText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('networkStrategyText')" class="btn btn-outline text-sm mt-2">📋 העתק</button>
       </div>
     </div>
 
@@ -214,6 +216,7 @@
       </button>
       <div id="postIdeasResult" class="hidden">
         <div id="postIdeasText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('postIdeasText')" class="btn btn-outline text-sm mt-2">📋 העתק</button>
       </div>
     </div>
 
