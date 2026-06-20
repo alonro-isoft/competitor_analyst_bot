@@ -249,6 +249,12 @@
         <div id="improvedPostText" class="ai-result"></div>
         <button onclick="useImprovedPost()" class="btn btn-outline text-sm">← Use this version</button>
       </div>
+      <!-- Save Draft -->
+      <div class="flex gap-2 items-center flex-wrap">
+        <input id="draftName" type="text" class="input-field" style="flex:1;min-width:160px" placeholder="Draft name (e.g. v1, hook idea, final)">
+        <button onclick="saveDraft()" class="btn btn-outline text-sm whitespace-nowrap">💾 Save Draft</button>
+      </div>
+      <div id="draftSavedMsg" class="text-green-600 text-sm hidden">✓ Draft saved</div>
       <div class="flex gap-2 flex-wrap">
         <button id="publishBtn" onclick="publishPost()" class="btn btn-green" disabled>
           🚀 Publish to LinkedIn
@@ -256,6 +262,17 @@
         <button onclick="clearPost()" class="btn btn-outline text-sm">Clear</button>
       </div>
       <div id="publishStatus" class="hidden"></div>
+    </div>
+
+    <!-- Drafts -->
+    <div class="card space-y-3">
+      <div class="flex justify-between items-center">
+        <h3 class="font-semibold text-gray-700">💾 Saved Drafts</h3>
+        <button onclick="clearAllDrafts()" class="text-xs text-gray-400 hover:text-red-500">Clear all</button>
+      </div>
+      <div id="draftsList" class="space-y-2">
+        <p class="text-gray-400 text-sm">No drafts saved yet</p>
+      </div>
     </div>
 
     <!-- Post History -->
@@ -331,6 +348,7 @@ function init() {
   document.getElementById('serverUrl').value = localStorage.getItem('server_url') || 'http://localhost:3000';
   updateLoginUI();
   renderPostHistory();
+  renderDrafts();
   if (accessToken && !userProfile) fetchProfile();
 }
 
@@ -809,6 +827,82 @@ async function publishPost() {
     btn.disabled = false;
     btn.innerHTML = '🚀 Publish to LinkedIn';
   }
+}
+
+// ─── Drafts ───────────────────────────────────────────────────────────────────
+function saveDraft() {
+  const text = document.getElementById('postContent').value.trim();
+  if (!text) { alert('Write something first before saving a draft'); return; }
+
+  const nameInput = document.getElementById('draftName');
+  const name = nameInput.value.trim() || `Draft ${new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}`;
+
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  drafts.unshift({ name, text, date: new Date().toISOString() });
+  if (drafts.length > 30) drafts.pop();
+  localStorage.setItem('post_drafts', JSON.stringify(drafts));
+
+  nameInput.value = '';
+  const msg = document.getElementById('draftSavedMsg');
+  msg.classList.remove('hidden');
+  setTimeout(() => msg.classList.add('hidden'), 2000);
+  renderDrafts();
+}
+
+function loadDraft(index) {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  if (drafts[index]) {
+    document.getElementById('postContent').value = drafts[index].text;
+    updateCharCounter();
+    document.getElementById('postContent').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+function deleteDraft(index) {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  drafts.splice(index, 1);
+  localStorage.setItem('post_drafts', JSON.stringify(drafts));
+  renderDrafts();
+}
+
+function renameDraft(index) {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  const newName = prompt('New name for this draft:', drafts[index]?.name || '');
+  if (newName && newName.trim()) {
+    drafts[index].name = newName.trim();
+    localStorage.setItem('post_drafts', JSON.stringify(drafts));
+    renderDrafts();
+  }
+}
+
+function clearAllDrafts() {
+  if (confirm('Delete all saved drafts?')) {
+    localStorage.removeItem('post_drafts');
+    renderDrafts();
+  }
+}
+
+function renderDrafts() {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  const container = document.getElementById('draftsList');
+  if (!drafts.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm">No drafts saved yet</p>';
+    return;
+  }
+  container.innerHTML = drafts.map((d, i) => `
+    <div class="post-history-item space-y-1">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-medium text-gray-800 text-sm">${d.name}</span>
+        <span class="text-xs text-gray-400 whitespace-nowrap">${new Date(d.date).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+      </div>
+      <p class="text-gray-500 text-sm">${d.text.slice(0, 100)}${d.text.length > 100 ? '...' : ''}</p>
+      <div class="flex gap-3 mt-1">
+        <button onclick="loadDraft(${i})" class="text-indigo-500 text-xs hover:underline">Load</button>
+        <button onclick="renameDraft(${i})" class="text-gray-400 text-xs hover:underline">Rename</button>
+        <button onclick="deleteDraft(${i})" class="text-red-400 text-xs hover:underline">Delete</button>
+      </div>
+    </div>
+  `).join('');
 }
 
 // ─── Post History ─────────────────────────────────────────────────────────────
