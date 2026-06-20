@@ -388,7 +388,7 @@ function linkedinLogin() {
     client_id: clientId,
     redirect_uri: `${serverUrl}/auth/linkedin/callback`,
     state,
-    scope: 'openid profile email w_member_social r_liteprofile',
+    scope: 'openid profile email w_member_social',
   });
 
   const popup = window.open(
