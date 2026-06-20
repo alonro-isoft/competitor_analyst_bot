@@ -144,7 +144,7 @@
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-600 mb-1">Your About Section</label>
-        <textarea id="profileAbout" rows="4" class="input-field" placeholder="Paste your LinkedIn About section here..."></textarea>
+        <textarea id="profileAbout" rows="4" class="input-field" placeholder="LinkedIn doesn't allow apps to read the About section — paste it here manually from your profile."></textarea>
       </div>
       <div>
         <label class="block text-sm font-medium text-gray-600 mb-1">Current Role & Company</label>
@@ -388,7 +388,7 @@ function linkedinLogin() {
     client_id: clientId,
     redirect_uri: `${serverUrl}/auth/linkedin/callback`,
     state,
-    scope: 'openid profile email w_member_social',
+    scope: 'openid profile email w_member_social r_liteprofile',
   });
 
   const popup = window.open(
@@ -504,6 +504,16 @@ function updateLoginUI() {
       userProfile.name || `${userProfile.given_name || ''} ${userProfile.family_name || ''}`;
     document.getElementById('profileEmail').textContent = userProfile.email || '';
     document.getElementById('profileSub').textContent = `LinkedIn ID: ${userProfile.sub || ''}`;
+
+    // Auto-populate profile fields if data is available and field is empty
+    const headlineEl = document.getElementById('profileHeadline');
+    const roleEl = document.getElementById('profileRole');
+    if (userProfile.headline && !headlineEl.value) {
+      headlineEl.value = userProfile.headline;
+    }
+    if (userProfile.currentRole && !roleEl.value) {
+      roleEl.value = userProfile.currentRole;
+    }
   }
 }
 

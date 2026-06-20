@@ -63,16 +63,44 @@ app.post('/api/linkedin/token', async (req, res) => {
   }
 });
 
-// Fetch LinkedIn profile using OpenID Connect userinfo endpoint
+// Fetch LinkedIn profile — combines OpenID Connect userinfo + extended v2 profile
 app.get('/api/linkedin/profile', async (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'Missing Authorization header' });
 
   try {
-    const { data } = await axios.get('https://api.linkedin.com/v2/userinfo', {
+    const { data: userinfo } = await axios.get('https://api.linkedin.com/v2/userinfo', {
       headers: { Authorization: auth },
     });
-    res.json(data);
+
+    // Try to fetch headline and current position (requires r_liteprofile scope)
+    let headline = '';
+    let currentRole = '';
+    let aboutSection = '';
+
+    try {
+      const { data: me } = await axios.get(
+        'https://api.linkedin.com/v2/me?projection=(localizedHeadline,headline)',
+        { headers: { Authorization: auth } }
+      );
+      headline = me.localizedHeadline || me.headline || '';
+    } catch (_) { /* scope not granted or not available */ }
+
+    try {
+      const { data: positions } = await axios.get(
+        'https://api.linkedin.com/v2/me?projection=(positions)',
+        { headers: { Authorization: auth } }
+      );
+      const pos = positions?.positions?.values;
+      if (pos?.length) {
+        const current = pos.find(p => !p.timePeriod?.endDate) || pos[0];
+        const title = current.title || '';
+        const company = current.company?.name || '';
+        currentRole = [title, company].filter(Boolean).join(' at ');
+      }
+    } catch (_) { /* not available */ }
+
+    res.json({ ...userinfo, headline, currentRole, aboutSection });
   } catch (err) {
     res.status(502).json({ error: err.response?.data ?? err.message });
   }
