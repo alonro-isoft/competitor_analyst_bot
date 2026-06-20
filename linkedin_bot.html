@@ -276,18 +276,45 @@
 <script>
 // ─── Markdown renderer ───────────────────────────────────────────────────────
 function renderMarkdown(text) {
-  return text
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^\* (.+)$/gm, '<li>$1</li>')
-    .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul>${m}</ul>`)
-    .replace(/\n\n+/g, '</p><p>')
-    .replace(/^(?!<[hul])/gm, '')
-    .replace(/(.+)/s, '<p>$1</p>');
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const lines = escaped.split('\n');
+  let html = '';
+  let inList = false;
+
+  for (const raw of lines) {
+    const line = raw
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    if (/^### (.+)/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h3>${line.replace(/^### /, '')}</h3>`;
+    } else if (/^## (.+)/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h2>${line.replace(/^## /, '')}</h2>`;
+    } else if (/^# (.+)/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h1>${line.replace(/^# /, '')}</h1>`;
+    } else if (/^[\*\-] (.+)/.test(line)) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${line.replace(/^[\*\-] /, '')}</li>`;
+    } else if (/^\d+\. (.+)/.test(line)) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${line.replace(/^\d+\. /, '')}</li>`;
+    } else if (line.trim() === '') {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += '<br>';
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<p>${line}</p>`;
+    }
+  }
+  if (inList) html += '</ul>';
+  return html;
 }
 
 function setAiResult(elementId, text) {
@@ -475,7 +502,7 @@ async function callGemini(prompt) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1500 },
+        generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
       }),
     }
   );
