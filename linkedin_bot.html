@@ -140,12 +140,20 @@
       <h3 class="font-semibold text-gray-700">🤖 ניתוח פרופיל עם AI</h3>
       <p class="text-sm text-gray-500">נתח את הפרופיל שלך ב-LinkedIn וקבל המלצות מותאמות אישית</p>
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-1">תחום עיסוק / תפקיד (אופציונלי)</label>
-        <input id="profileRole" type="text" class="input-field" placeholder="לדוגמה: מנהל מוצר, B2B SaaS">
+        <label class="block text-sm font-medium text-gray-600 mb-1">כותרת LinkedIn שלך (Headline)</label>
+        <input id="profileHeadline" type="text" class="input-field" placeholder="לדוגמה: B2B Cybersecurity Sales | Helping CISOs reduce risk">
       </div>
       <div>
-        <label class="block text-sm font-medium text-gray-600 mb-1">מטרות LinkedIn (אופציונלי)</label>
-        <textarea id="profileGoals" rows="2" class="input-field" placeholder="לדוגמה: מחפש עבודה, גיוס לידים, בניית מיתוג אישי"></textarea>
+        <label class="block text-sm font-medium text-gray-600 mb-1">סעיף "אודות" (About) שלך</label>
+        <textarea id="profileAbout" rows="4" class="input-field" placeholder="הדבק כאן את סעיף האודות שלך מלינקדין..."></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">תפקיד נוכחי וחברה</label>
+        <input id="profileRole" type="text" class="input-field" placeholder="לדוגמה: Account Executive at CyberArk, B2B SaaS">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">מטרות LinkedIn</label>
+        <textarea id="profileGoals" rows="2" class="input-field" placeholder="לדוגמה: לייצר לידים ממנהלי IT, לבנות מיתוג אישי בתחום הסייבר"></textarea>
       </div>
       <button id="analyzeProfileBtn" onclick="analyzeProfile()" class="btn btn-primary" disabled>
         נתח פרופיל
@@ -480,36 +488,56 @@ async function callGemini(prompt) {
 }
 
 function profileContext() {
-  if (!userProfile) return '';
-  return `שם: ${userProfile.name || ''}, אימייל: ${userProfile.email || ''}`;
+  const name = userProfile?.name || userProfile?.given_name || '';
+  const headline = document.getElementById('profileHeadline')?.value.trim() || '';
+  const about = document.getElementById('profileAbout')?.value.trim() || '';
+  const role = document.getElementById('profileRole')?.value.trim() || '';
+  const goals = document.getElementById('profileGoals')?.value.trim() || '';
+
+  let ctx = `שם: ${name}`;
+  if (headline) ctx += `\nכותרת (Headline): ${headline}`;
+  if (role) ctx += `\nתפקיד נוכחי: ${role}`;
+  if (about) ctx += `\nסעיף אודות:\n${about}`;
+  if (goals) ctx += `\nמטרות LinkedIn: ${goals}`;
+  return ctx;
 }
 
 // ─── Profile Analysis ─────────────────────────────────────────────────────────
 async function analyzeProfile() {
-  const role = document.getElementById('profileRole').value.trim();
-  const goals = document.getElementById('profileGoals').value.trim();
   const btn = document.getElementById('analyzeProfileBtn');
   const result = document.getElementById('profileAnalysisResult');
   const text = document.getElementById('profileAnalysisText');
+
+  const ctx = profileContext();
+  if (ctx.trim() === `שם: ${userProfile?.name || ''}`) {
+    alert('מלא לפחות את שדה הכותרת (Headline) או האודות כדי לקבל ניתוח מותאם אישית');
+    return;
+  }
 
   btn.disabled = true;
   btn.innerHTML = 'מנתח...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
   result.classList.add('hidden');
 
-  const prompt = `אתה יועץ LinkedIn בכיר. נתח את הפרופיל הבא ותן המלצות מפורטות בעברית.
+  const prompt = `אתה יועץ LinkedIn בכיר המתמחה ב-B2B ומכירות. נתח את הפרופיל הבא ותן המלצות **ספציפיות ומפורטות** בעברית — לא תשובות גנריות.
 
 פרטי הפרופיל:
-${profileContext()}
-${role ? `תחום עיסוק: ${role}` : ''}
-${goals ? `מטרות LinkedIn: ${goals}` : ''}
+${ctx}
 
-ספק ניתוח מקיף הכולל:
-1. **חוזקות הפרופיל** — מה עובד טוב
-2. **נקודות לשיפור** — מה חסר או יכול להיות טוב יותר
-3. **המלצות לכותרת (Headline)** — 3 הצעות ספציפיות
-4. **המלצות לסעיף "אודות" (About)** — טיפים לכתיבה
-5. **אסטרטגיית תוכן** — סוגי פוסטים שיתאימו לך
-6. **ציון כולל** — ציון מ-1 עד 10 עם הסבר`;
+ספק ניתוח מעמיק הכולל:
+## 1. ניתוח הכותרת הנוכחית
+נתח את הכותרת הקיימת — מה טוב, מה חסר, האם היא ממוקדת מספיק לקהל היעד.
+
+## 2. שלוש הצעות לכותרת משופרת
+כתוב 3 כותרות ספציפיות שמשקפות את הערך הייחודי שלו לקהל היעד.
+
+## 3. ניתוח סעיף האודות
+מה עובד טוב, מה חסר, כיצד לשפר את המבנה והמסר.
+
+## 4. המלצות לתוכן
+3-5 נושאי פוסטים ספציפיים שיתאימו לתחום ולמטרות, עם הסבר מדוע כל נושא יעבוד.
+
+## 5. ציון כולל
+ציון מ-1 עד 10 עם הסבר ברור מה צריך לעשות כדי להגיע ל-10.`;
 
   try {
     const answer = await callGemini(prompt);
