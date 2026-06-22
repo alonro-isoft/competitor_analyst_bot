@@ -154,6 +154,7 @@ let pendingProfileImport = null;
 
 app.post('/api/import-profile', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Private-Network', 'true');
   pendingProfileImport = req.body;
   res.json({ success: true });
 });
@@ -162,6 +163,7 @@ app.options('/api/import-profile', (req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Private-Network', 'true');
   res.sendStatus(200);
 });
 
