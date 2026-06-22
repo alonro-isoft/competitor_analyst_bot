@@ -917,17 +917,17 @@ function profileContext() {
 function buildBookmarklet() {
   const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
   const code = `(function(){
-var h=document.querySelector('.text-heading-xlarge,.pv-text-details__left-panel h1,h1');
-var headline=document.querySelector('.text-body-medium.break-words,.pv-text-details__left-panel .text-body-medium');
+var h=document.querySelector('.text-heading-xlarge');
+var headline=document.querySelector('.text-body-medium.break-words');
 var about='';
-var aboutEl=document.querySelector('#about~div .visually-hidden,section[data-member-id] .pv-shared-text-with-see-more .visually-hidden,.display-flex.ph5.pv3 .pv-shared-text-with-see-more .visually-hidden');
-if(!aboutEl){var sections=[].slice.call(document.querySelectorAll('section'));for(var i=0;i<sections.length;i++){var hdr=sections[i].querySelector('h2');if(hdr&&/about/i.test(hdr.textContent)){aboutEl=sections[i].querySelector('.visually-hidden,.pv-shared-text-with-see-more span[aria-hidden]');break;}}}
-if(aboutEl)about=aboutEl.innerText||aboutEl.textContent||'';
-var roleEl=document.querySelector('.experience-section li:first-child .pv-entity__secondary-title,.pvs-list__item--line-separated:first-child .t-bold span[aria-hidden],.pv-profile-section__list-item:first-child .pv-entity__secondary-title');
+var aboutSection=document.querySelector('#about');
+if(aboutSection){var p=aboutSection.closest('section')||aboutSection.parentElement;if(p){var sp=p.querySelector('span[aria-hidden="true"]');if(sp)about=sp.innerText||'';}}
+if(!about){var secs=document.querySelectorAll('section');secs.forEach(function(s){var hdr=s.querySelector('div[id]');if(hdr&&/about/i.test(hdr.id)){var sp=s.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>20)about=sp.innerText;}});}
 var roleText='';
-if(!roleEl){var expSection=document.querySelector('section#experience-section,#experience~div');if(expSection){var firstJob=expSection.querySelector('li');if(firstJob){var t=firstJob.querySelector('[aria-hidden="true"]');if(t)roleText=t.innerText;}}}else{roleText=roleEl.innerText||roleEl.textContent||'';}
-var data={name:(h?h.innerText.trim():''),headline:(headline?headline.innerText.trim():''),about:about.trim(),role:roleText.trim()};
-fetch('${serverUrl}/api/import-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){alert('Profile imported! Switch back to the app and click "Import from LinkedIn Page".');}).catch(function(e){alert('Error: '+e.message+'. Make sure the local server is running (npm start).');});
+var expAnchor=document.querySelector('#experience');
+if(expAnchor){var expSec=expAnchor.closest('section')||expAnchor.parentElement;if(expSec){var boldSpans=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(boldSpans.length)roleText=boldSpans[0].innerText||'';}}
+var params=new URLSearchParams({headline:(headline?headline.innerText.trim():''),about:about.trim(),role:roleText.trim()});
+window.open('${serverUrl}/import?'+params.toString(),'_blank');
 })();`;
   const link = document.getElementById('bookmarkletLink');
   if (link) link.href = 'javascript:' + encodeURIComponent(code);

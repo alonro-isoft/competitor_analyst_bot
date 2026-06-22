@@ -152,19 +152,20 @@ app.post('/api/linkedin/post', async (req, res) => {
 // Bookmarklet profile import — stores data temporarily until the app polls for it
 let pendingProfileImport = null;
 
-app.post('/api/import-profile', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Private-Network', 'true');
-  pendingProfileImport = req.body;
-  res.json({ success: true });
-});
-
-app.options('/api/import-profile', (req, res) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  res.header('Access-Control-Allow-Private-Network', 'true');
-  res.sendStatus(200);
+// Bookmarklet opens this page in a new tab — no CORS issues
+app.get('/import', (req, res) => {
+  pendingProfileImport = {
+    headline: req.query.headline || '',
+    about: req.query.about || '',
+    role: req.query.role || '',
+  };
+  res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Profile Imported</title></head>
+<body style="font-family:Arial;text-align:center;padding:3rem;background:#f0fdf4">
+<h2 style="color:#16a34a">✓ Profile imported successfully!</h2>
+<p style="color:#374151">Switch back to the LinkedIn AI Assistant and click <strong>"Import from LinkedIn Page"</strong></p>
+<p style="color:#9ca3af;font-size:.85rem">This tab will close automatically...</p>
+<script>setTimeout(()=>window.close(),2000)</script>
+</body></html>`);
 });
 
 app.get('/api/import-profile', (req, res) => {
