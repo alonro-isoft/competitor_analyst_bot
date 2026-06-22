@@ -149,6 +149,28 @@ app.post('/api/linkedin/post', async (req, res) => {
   }
 });
 
+// Bookmarklet profile import — stores data temporarily until the app polls for it
+let pendingProfileImport = null;
+
+app.post('/api/import-profile', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  pendingProfileImport = req.body;
+  res.json({ success: true });
+});
+
+app.options('/api/import-profile', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
+app.get('/api/import-profile', (req, res) => {
+  const data = pendingProfileImport;
+  pendingProfileImport = null;
+  res.json(data || {});
+});
+
 app.listen(PORT, () => {
   console.log(`\nLinkedIn server ready: http://localhost:${PORT}`);
   console.log(`Redirect URI (add to LinkedIn app): ${REDIRECT_URI}\n`);
