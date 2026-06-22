@@ -250,7 +250,8 @@
             <p id="profileSub" class="text-xs text-gray-400 mt-1"></p>
           </div>
         </div>
-        <button onclick="fetchProfile()" class="btn btn-outline text-sm">🔄 Refresh Profile</button>
+        <button onclick="fetchProfile(true)" class="btn btn-outline text-sm">🔄 Refresh Profile</button>
+        <span id="refreshStatus" class="text-sm hidden"></span>
       </div>
     </div>
 
@@ -765,22 +766,48 @@ function setLoginBtnLoading(loading) {
 }
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
-async function fetchProfile() {
+async function fetchProfile(showFeedback = false) {
   if (!accessToken) return;
   const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+
+  const statusEl = document.getElementById('refreshStatus');
+  const btn = document.querySelector('[onclick="fetchProfile(true)"]');
+
+  if (showFeedback && btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Refreshing...';
+  }
+  if (statusEl) statusEl.classList.add('hidden');
+
   try {
     const res = await fetch(`${serverUrl}/api/linkedin/profile`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (!res.ok) {
       if (res.status === 401) { linkedinLogout(); return; }
-      throw new Error(await res.text());
+      throw new Error(`Server error ${res.status}`);
     }
     userProfile = await res.json();
     localStorage.setItem('li_profile', JSON.stringify(userProfile));
     updateLoginUI();
+
+    if (showFeedback && statusEl) {
+      statusEl.className = 'text-sm text-green-600';
+      statusEl.textContent = '✓ Profile refreshed';
+      statusEl.classList.remove('hidden');
+      setTimeout(() => statusEl.classList.add('hidden'), 2500);
+    }
   } catch (err) {
-    console.error('Profile fetch error:', err);
+    if (showFeedback && statusEl) {
+      statusEl.className = 'text-sm text-red-500';
+      statusEl.textContent = `Error: ${err.message} — is the server running?`;
+      statusEl.classList.remove('hidden');
+    }
+  } finally {
+    if (showFeedback && btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Refresh Profile';
+    }
   }
 }
 
