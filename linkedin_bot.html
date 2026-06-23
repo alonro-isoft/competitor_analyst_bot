@@ -264,14 +264,17 @@
         <ol class="list-decimal list-inside space-y-1">
           <li>Drag the blue button below to your browser's bookmarks bar <em>(one-time)</em></li>
           <li>Go to your <a href="https://www.linkedin.com/in/me/" target="_blank" class="underline font-medium">LinkedIn profile page</a></li>
-          <li>Click the bookmarklet — it reads your profile and copies it to clipboard</li>
-          <li>Come back here and click <strong>"📋 Paste Profile"</strong></li>
+          <li>Click the bookmarklet — a popup appears with encoded text</li>
+          <li>Select all the text in the popup (Cmd+A) and copy it (Cmd+C)</li>
+          <li>Come back here, paste in the box below, and click <strong>Apply ✓</strong></li>
         </ol>
-        <p class="text-xs text-amber-600">No server needed — data travels through the clipboard.</p>
       </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm" title="Drag this to your bookmarks bar">🔖 LinkedIn Importer — drag me to bookmarks bar</a>
-        <button onclick="pasteProfile()" id="importBtn" class="btn btn-primary text-sm">📋 Paste Profile</button>
+      <div class="space-y-2">
+        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LinkedIn Importer — drag me to bookmarks bar</a>
+        <div class="flex gap-2 items-start">
+          <textarea id="pasteInput" rows="2" class="input-field text-sm font-mono" placeholder="Paste the copied text here (LIIMPORT:...) and click Apply"></textarea>
+          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Apply ✓</button>
+        </div>
         <span id="importStatus" class="text-sm hidden"></span>
       </div>
     </div>
@@ -926,26 +929,31 @@ var expAnchor=document.querySelector('#experience');
 if(expAnchor){var expSec=expAnchor.closest('section');if(expSec){var bold=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(bold.length)role=bold[0].innerText.trim();}}
 if(!headline&&!about&&!role){alert('Could not find profile data. Make sure you are on your LinkedIn profile page (linkedin.com/in/yourname).');return;}
 var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
-if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(payload).then(function(){alert('\\u2713 Profile copied! Go back to the LinkedIn AI Assistant and click \\"Paste Profile\\".');}).catch(function(){prompt('Copy all of this, then paste in the app:',payload);});}else{prompt('Copy all of this, then paste in the app:',payload);}
+prompt('Select all (Ctrl+A / Cmd+A) and copy, then paste in the LinkedIn AI Assistant:',payload);
 })();`;
   const link = document.getElementById('bookmarkletLink');
   if (link) link.href = 'javascript:' + encodeURIComponent(code);
 }
 
-async function pasteProfile() {
+function applyPastedProfile() {
   const statusEl = document.getElementById('importStatus');
-  const btn = document.getElementById('importBtn');
+  const raw = document.getElementById('pasteInput').value.trim();
   statusEl.classList.add('hidden');
 
-  function applyData(data) {
-    if (!data.headline && !data.about && !data.role) {
-      statusEl.className = 'text-sm text-amber-600';
-      statusEl.textContent = 'No profile data found. Run the bookmarklet on your LinkedIn page first, then click Paste Profile.';
-      statusEl.classList.remove('hidden');
-      return;
-    }
+  if (!raw) {
+    statusEl.className = 'text-sm text-amber-600';
+    statusEl.textContent = 'Paste the text from the bookmarklet popup first.';
+    statusEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const idx = raw.indexOf('LIIMPORT:');
+    if (idx === -1) throw new Error('Not a valid import string');
+    const b64 = raw.slice(idx + 9).trim();
+    const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    const ids = {headline:'profileHeadline', about:'profileAbout', role:'profileRole'};
     ['headline','about','role'].forEach(key => {
-      const ids = {headline:'profileHeadline', about:'profileAbout', role:'profileRole'};
       if (data[key]) {
         const el = document.getElementById(ids[key]);
         el.value = data[key];
@@ -953,44 +961,14 @@ async function pasteProfile() {
         setTimeout(() => { el.style.background = ''; }, 2000);
       }
     });
+    document.getElementById('pasteInput').value = '';
     statusEl.className = 'text-sm text-green-600';
     statusEl.textContent = `✓ Imported: ${[data.headline && 'Headline', data.about && 'About', data.role && 'Role'].filter(Boolean).join(', ')}`;
     statusEl.classList.remove('hidden');
-  }
-
-  function parsePayload(text) {
-    if (!text || !text.includes('LIIMPORT:')) return null;
-    try {
-      const b64 = text.slice(text.indexOf('LIIMPORT:') + 9).trim();
-      return JSON.parse(decodeURIComponent(escape(atob(b64))));
-    } catch { return null; }
-  }
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Reading...';
-
-  try {
-    const text = await navigator.clipboard.readText();
-    const data = parsePayload(text);
-    if (data) { applyData(data); return; }
-    // clipboard doesn't have our data — show manual paste dialog
-    const manual = prompt('Paste the profile data from the bookmarklet here:');
-    if (manual) {
-      const d = parsePayload(manual);
-      if (d) applyData(d);
-      else { statusEl.className = 'text-sm text-red-500'; statusEl.textContent = 'Invalid data — run the bookmarklet first.'; statusEl.classList.remove('hidden'); }
-    }
   } catch {
-    // clipboard read failed — show manual paste dialog
-    const manual = prompt('Paste the profile data from the bookmarklet here:');
-    if (manual) {
-      const d = parsePayload(manual);
-      if (d) applyData(d);
-      else { statusEl.className = 'text-sm text-red-500'; statusEl.textContent = 'Invalid data — run the bookmarklet first.'; statusEl.classList.remove('hidden'); }
-    }
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '📋 Paste Profile';
+    statusEl.className = 'text-sm text-red-500';
+    statusEl.textContent = 'Invalid data. Make sure you copied the full text from the bookmarklet popup.';
+    statusEl.classList.remove('hidden');
   }
 }
 
