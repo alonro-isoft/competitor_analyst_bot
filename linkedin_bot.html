@@ -270,10 +270,10 @@
         </ol>
       </div>
       <div class="space-y-2">
-        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v3 — drag to bookmarks bar</a>
+        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v4 — drag to bookmarks bar</a>
         <div class="flex gap-2 items-start">
           <textarea id="pasteInput" rows="2" class="input-field text-sm font-mono" placeholder="Paste the copied text here (LIIMPORT:...) and click Load Profile"></textarea>
-          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Load Profile v3</button>
+          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Load Profile v4</button>
         </div>
         <span id="importStatus" class="text-sm hidden"></span>
       </div>
@@ -929,30 +929,28 @@ var expAnchor=document.querySelector('#experience');
 if(expAnchor){var expSec=expAnchor.closest('section');if(expSec){var bold=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(bold.length)role=bold[0].innerText.trim();}}
 var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
 var ov=document.createElement('div');
-ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
-var box=document.createElement('div');
-box.style.cssText='background:#fff;border-radius:14px;padding:28px;max-width:520px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.4);font-family:Arial,sans-serif;';
-box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;font-size:17px;color:#1f2937;">LinkedIn AI Assistant</h3><button id="_li_close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;">✕</button></div>'
-+'<p style="margin:0 0 10px;font-size:13px;color:#6b7280;">Profile extracted. Click <strong>Copy</strong>, then paste in the app:</p>'
-+'<textarea id="_li_ta" style="width:100%;height:90px;font-size:11px;font-family:monospace;border:2px solid #4f46e5;border-radius:8px;padding:8px;box-sizing:border-box;resize:none;" readonly></textarea>'
-+'<div style="display:flex;gap:10px;margin-top:14px;">'
-+'<button id="_li_copy" style="flex:1;background:#4f46e5;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">📋 Copy</button>'
-+'<button id="_li_close2" style="background:#f3f4f6;color:#374151;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:14px;">Close</button>'
-+'</div>';
-ov.appendChild(box);
-document.body.appendChild(ov);
-var ta=document.getElementById('_li_ta');
+ov.setAttribute('style','position:fixed!important;top:20px!important;left:50%!important;transform:translateX(-50%)!important;background:#1e1b4b!important;color:#fff!important;border-radius:14px!important;padding:22px!important;max-width:480px!important;width:88%!important;z-index:2147483647!important;box-shadow:0 20px 60px rgba(0,0,0,.6)!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;');
+var msg=document.createElement('div');
+msg.setAttribute('style','font-size:14px!important;font-weight:bold!important;margin-bottom:8px!important;color:#fff!important;');
+msg.textContent='LinkedIn AI Assistant — Profile Extracted';
+var inst=document.createElement('div');
+inst.setAttribute('style','font-size:12px!important;color:#c7d2fe!important;margin-bottom:10px!important;');
+inst.textContent='The text below was copied to clipboard. Click elsewhere to close.';
+var ta=document.createElement('textarea');
+ta.setAttribute('style','width:100%!important;height:80px!important;background:#312e81!important;color:#a5b4fc!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:8px!important;padding:8px!important;font-size:10px!important;font-family:monospace!important;box-sizing:border-box!important;resize:none!important;');
+ta.readOnly=true;
 ta.value=payload;
+ov.appendChild(msg);ov.appendChild(inst);ov.appendChild(ta);
+document.body.appendChild(ov);
 ta.focus();ta.select();
-document.getElementById('_li_copy').onclick=function(){
-ta.select();
-if(navigator.clipboard){navigator.clipboard.writeText(ta.value).catch(function(){document.execCommand('copy');});}else{document.execCommand('copy');}
-this.textContent='✓ Copied!';this.style.background='#16a34a';
-setTimeout(function(){ov.remove();},900);
-};
-document.getElementById('_li_close').onclick=function(){ov.remove();};
-document.getElementById('_li_close2').onclick=function(){ov.remove();};
-ov.onclick=function(e){if(e.target===ov)ov.remove();};
+navigator.clipboard.writeText(payload).then(function(){
+  inst.textContent='✓ Copied to clipboard! Go back to the app and click "Load Profile v4".';
+  inst.setAttribute('style','font-size:12px!important;color:#86efac!important;margin-bottom:10px!important;font-weight:bold!important;');
+}).catch(function(){
+  ta.select();try{document.execCommand('copy');}catch(e){}
+  inst.textContent='Press Cmd+A then Cmd+C to copy, then paste in the app.';
+});
+document.addEventListener('click',function h(e){if(!ov.contains(e.target)){ov.remove();document.removeEventListener('click',h);}},{capture:true,once:false});
 })();`;
   const link = document.getElementById('bookmarkletLink');
   if (link) link.href = 'javascript:' + encodeURIComponent(code);
