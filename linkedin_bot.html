@@ -270,10 +270,10 @@
         </ol>
       </div>
       <div class="space-y-2">
-        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LinkedIn Importer — drag me to bookmarks bar</a>
+        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v3 — drag to bookmarks bar</a>
         <div class="flex gap-2 items-start">
-          <textarea id="pasteInput" rows="2" class="input-field text-sm font-mono" placeholder="Paste the copied text here (LIIMPORT:...) and click Apply"></textarea>
-          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Apply ✓</button>
+          <textarea id="pasteInput" rows="2" class="input-field text-sm font-mono" placeholder="Paste the copied text here (LIIMPORT:...) and click Load Profile"></textarea>
+          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Load Profile v3</button>
         </div>
         <span id="importStatus" class="text-sm hidden"></span>
       </div>
@@ -927,9 +927,32 @@ if(aboutAnchor){var sec=aboutAnchor.closest('section');if(sec){var sp=sec.queryS
 if(!about){document.querySelectorAll('section').forEach(function(s){var id=s.querySelector('[id]');if(id&&/about/i.test(id.id)&&!about){var sp=s.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>10)about=sp.innerText.trim();}});}
 var expAnchor=document.querySelector('#experience');
 if(expAnchor){var expSec=expAnchor.closest('section');if(expSec){var bold=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(bold.length)role=bold[0].innerText.trim();}}
-if(!headline&&!about&&!role){alert('Could not find profile data. Make sure you are on your LinkedIn profile page (linkedin.com/in/yourname).');return;}
 var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
-prompt('Select all (Ctrl+A / Cmd+A) and copy, then paste in the LinkedIn AI Assistant:',payload);
+var ov=document.createElement('div');
+ov.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
+var box=document.createElement('div');
+box.style.cssText='background:#fff;border-radius:14px;padding:28px;max-width:520px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.4);font-family:Arial,sans-serif;';
+box.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;"><h3 style="margin:0;font-size:17px;color:#1f2937;">LinkedIn AI Assistant</h3><button id="_li_close" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;">✕</button></div>'
++'<p style="margin:0 0 10px;font-size:13px;color:#6b7280;">Profile extracted. Click <strong>Copy</strong>, then paste in the app:</p>'
++'<textarea id="_li_ta" style="width:100%;height:90px;font-size:11px;font-family:monospace;border:2px solid #4f46e5;border-radius:8px;padding:8px;box-sizing:border-box;resize:none;" readonly></textarea>'
++'<div style="display:flex;gap:10px;margin-top:14px;">'
++'<button id="_li_copy" style="flex:1;background:#4f46e5;color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;">📋 Copy</button>'
++'<button id="_li_close2" style="background:#f3f4f6;color:#374151;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:14px;">Close</button>'
++'</div>';
+ov.appendChild(box);
+document.body.appendChild(ov);
+var ta=document.getElementById('_li_ta');
+ta.value=payload;
+ta.focus();ta.select();
+document.getElementById('_li_copy').onclick=function(){
+ta.select();
+if(navigator.clipboard){navigator.clipboard.writeText(ta.value).catch(function(){document.execCommand('copy');});}else{document.execCommand('copy');}
+this.textContent='✓ Copied!';this.style.background='#16a34a';
+setTimeout(function(){ov.remove();},900);
+};
+document.getElementById('_li_close').onclick=function(){ov.remove();};
+document.getElementById('_li_close2').onclick=function(){ov.remove();};
+ov.onclick=function(e){if(e.target===ov)ov.remove();};
 })();`;
   const link = document.getElementById('bookmarkletLink');
   if (link) link.href = 'javascript:' + encodeURIComponent(code);
