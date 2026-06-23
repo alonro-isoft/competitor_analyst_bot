@@ -260,18 +260,18 @@
       <h3 class="font-semibold text-gray-700">⚡ Auto-Fill from LinkedIn Page</h3>
       <p class="text-sm text-gray-500">Use the bookmarklet below to automatically import your Headline, About section, and Current Role straight from your LinkedIn profile page.</p>
       <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 space-y-2">
-        <p class="font-semibold">One-time setup (30 seconds):</p>
+        <p class="font-semibold">How to use:</p>
         <ol class="list-decimal list-inside space-y-1">
-          <li>Make sure the local server is running (<code class="bg-amber-100 px-1 rounded">npm start</code>)</li>
-          <li>Drag the button below to your browser's bookmarks bar</li>
+          <li>Drag the blue button below to your browser's bookmarks bar <em>(one-time)</em></li>
           <li>Go to your <a href="https://www.linkedin.com/in/me/" target="_blank" class="underline font-medium">LinkedIn profile page</a></li>
-          <li>Click the bookmarklet — it reads your profile and sends it here</li>
-          <li>Come back here and click <strong>"Import from LinkedIn Page"</strong></li>
+          <li>Click the bookmarklet — it reads your profile and copies it to clipboard</li>
+          <li>Come back here and click <strong>"📋 Paste Profile"</strong></li>
         </ol>
+        <p class="text-xs text-amber-600">No server needed — data travels through the clipboard.</p>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
         <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm" title="Drag this to your bookmarks bar">🔖 LinkedIn Importer — drag me to bookmarks bar</a>
-        <button onclick="importFromLinkedIn()" id="importBtn" class="btn btn-primary text-sm">📥 Import from LinkedIn Page</button>
+        <button onclick="pasteProfile()" id="importBtn" class="btn btn-primary text-sm">📋 Paste Profile</button>
         <span id="importStatus" class="text-sm hidden"></span>
       </div>
     </div>
@@ -915,74 +915,82 @@ function profileContext() {
 
 // ─── Bookmarklet import ───────────────────────────────────────────────────────
 function buildBookmarklet() {
-  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
   const code = `(function(){
-var h=document.querySelector('.text-heading-xlarge');
-var headline=document.querySelector('.text-body-medium.break-words');
-var about='';
-var aboutSection=document.querySelector('#about');
-if(aboutSection){var p=aboutSection.closest('section')||aboutSection.parentElement;if(p){var sp=p.querySelector('span[aria-hidden="true"]');if(sp)about=sp.innerText||'';}}
-if(!about){var secs=document.querySelectorAll('section');secs.forEach(function(s){var hdr=s.querySelector('div[id]');if(hdr&&/about/i.test(hdr.id)){var sp=s.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>20)about=sp.innerText;}});}
-var roleText='';
+var headline='',about='',role='';
+var h=document.querySelector('.text-body-medium.break-words');
+if(h)headline=h.innerText.trim();
+var aboutAnchor=document.querySelector('#about');
+if(aboutAnchor){var sec=aboutAnchor.closest('section');if(sec){var sp=sec.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>10)about=sp.innerText.trim();}}
+if(!about){document.querySelectorAll('section').forEach(function(s){var id=s.querySelector('[id]');if(id&&/about/i.test(id.id)&&!about){var sp=s.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>10)about=sp.innerText.trim();}});}
 var expAnchor=document.querySelector('#experience');
-if(expAnchor){var expSec=expAnchor.closest('section')||expAnchor.parentElement;if(expSec){var boldSpans=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(boldSpans.length)roleText=boldSpans[0].innerText||'';}}
-var params=new URLSearchParams({headline:(headline?headline.innerText.trim():''),about:about.trim(),role:roleText.trim()});
-window.open('${serverUrl}/import?'+params.toString(),'_blank');
+if(expAnchor){var expSec=expAnchor.closest('section');if(expSec){var bold=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(bold.length)role=bold[0].innerText.trim();}}
+if(!headline&&!about&&!role){alert('Could not find profile data. Make sure you are on your LinkedIn profile page (linkedin.com/in/yourname).');return;}
+var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
+if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(payload).then(function(){alert('\\u2713 Profile copied! Go back to the LinkedIn AI Assistant and click \\"Paste Profile\\".');}).catch(function(){prompt('Copy all of this, then paste in the app:',payload);});}else{prompt('Copy all of this, then paste in the app:',payload);}
 })();`;
   const link = document.getElementById('bookmarkletLink');
   if (link) link.href = 'javascript:' + encodeURIComponent(code);
 }
 
-async function importFromLinkedIn() {
-  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+async function pasteProfile() {
   const statusEl = document.getElementById('importStatus');
   const btn = document.getElementById('importBtn');
-
-  btn.disabled = true;
-  btn.textContent = '⏳ Checking...';
   statusEl.classList.add('hidden');
 
-  try {
-    const res = await fetch(`${serverUrl}/api/import-profile`);
-    if (!res.ok) throw new Error(`Server error ${res.status} — is the server running?`);
-    const data = await res.json();
-
+  function applyData(data) {
     if (!data.headline && !data.about && !data.role) {
       statusEl.className = 'text-sm text-amber-600';
-      statusEl.textContent = 'Nothing found yet — run the bookmarklet on your LinkedIn profile page first.';
+      statusEl.textContent = 'No profile data found. Run the bookmarklet on your LinkedIn page first, then click Paste Profile.';
       statusEl.classList.remove('hidden');
       return;
     }
-
-    if (data.headline) {
-      const el = document.getElementById('profileHeadline');
-      el.value = data.headline;
-      el.style.background = '#f0fdf4';
-      setTimeout(() => { el.style.background = ''; }, 2000);
-    }
-    if (data.about) {
-      const el = document.getElementById('profileAbout');
-      el.value = data.about;
-      el.style.background = '#f0fdf4';
-      setTimeout(() => { el.style.background = ''; }, 2000);
-    }
-    if (data.role) {
-      const el = document.getElementById('profileRole');
-      el.value = data.role;
-      el.style.background = '#f0fdf4';
-      setTimeout(() => { el.style.background = ''; }, 2000);
-    }
-
+    ['headline','about','role'].forEach(key => {
+      const ids = {headline:'profileHeadline', about:'profileAbout', role:'profileRole'};
+      if (data[key]) {
+        const el = document.getElementById(ids[key]);
+        el.value = data[key];
+        el.style.background = '#f0fdf4';
+        setTimeout(() => { el.style.background = ''; }, 2000);
+      }
+    });
     statusEl.className = 'text-sm text-green-600';
     statusEl.textContent = `✓ Imported: ${[data.headline && 'Headline', data.about && 'About', data.role && 'Role'].filter(Boolean).join(', ')}`;
     statusEl.classList.remove('hidden');
-  } catch (err) {
-    statusEl.className = 'text-sm text-red-500';
-    statusEl.textContent = `Error: ${err.message}`;
-    statusEl.classList.remove('hidden');
+  }
+
+  function parsePayload(text) {
+    if (!text || !text.includes('LIIMPORT:')) return null;
+    try {
+      const b64 = text.slice(text.indexOf('LIIMPORT:') + 9).trim();
+      return JSON.parse(decodeURIComponent(escape(atob(b64))));
+    } catch { return null; }
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Reading...';
+
+  try {
+    const text = await navigator.clipboard.readText();
+    const data = parsePayload(text);
+    if (data) { applyData(data); return; }
+    // clipboard doesn't have our data — show manual paste dialog
+    const manual = prompt('Paste the profile data from the bookmarklet here:');
+    if (manual) {
+      const d = parsePayload(manual);
+      if (d) applyData(d);
+      else { statusEl.className = 'text-sm text-red-500'; statusEl.textContent = 'Invalid data — run the bookmarklet first.'; statusEl.classList.remove('hidden'); }
+    }
+  } catch {
+    // clipboard read failed — show manual paste dialog
+    const manual = prompt('Paste the profile data from the bookmarklet here:');
+    if (manual) {
+      const d = parsePayload(manual);
+      if (d) applyData(d);
+      else { statusEl.className = 'text-sm text-red-500'; statusEl.textContent = 'Invalid data — run the bookmarklet first.'; statusEl.classList.remove('hidden'); }
+    }
   } finally {
     btn.disabled = false;
-    btn.textContent = '📥 Import from LinkedIn Page';
+    btn.textContent = '📋 Paste Profile';
   }
 }
 
