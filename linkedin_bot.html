@@ -676,6 +676,12 @@ function init() {
   document.getElementById('geminiKey').value = localStorage.getItem('gemini_key') || '';
   document.getElementById('serverUrl').value = localStorage.getItem('server_url') || 'http://localhost:3000';
   updateLoginUI();
+  // AI features only need Gemini key — always enable them
+  ['dashboardBtn', 'analyzeProfileBtn', 'networkStrategyBtn', 'connectionMsgBtn',
+   'postIdeasBtn', 'improvePostBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
   renderPostHistory();
   renderDrafts();
   renderMetrics();
@@ -848,11 +854,14 @@ function updateLoginUI() {
     ? `Connected as ${userProfile.name || (userProfile.given_name + ' ' + (userProfile.family_name || ''))}`
     : 'Not connected to LinkedIn';
 
-  const needsAuth = !loggedIn;
+  // Publish needs LinkedIn auth. Everything else only needs Gemini key.
+  const el = document.getElementById('publishBtn');
+  if (el) el.disabled = !loggedIn;
+
   ['dashboardBtn', 'analyzeProfileBtn', 'networkStrategyBtn', 'connectionMsgBtn',
-   'postIdeasBtn', 'publishBtn', 'improvePostBtn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = needsAuth;
+   'postIdeasBtn', 'improvePostBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = false;
   });
 
   document.getElementById('profileEmpty').classList.toggle('hidden', loggedIn);
@@ -865,15 +874,10 @@ function updateLoginUI() {
     document.getElementById('profileEmail').textContent = userProfile.email || '';
     document.getElementById('profileSub').textContent = `LinkedIn ID: ${userProfile.sub || ''}`;
 
-    // Auto-populate profile fields if data is available and field is empty
     const headlineEl = document.getElementById('profileHeadline');
     const roleEl = document.getElementById('profileRole');
-    if (userProfile.headline && !headlineEl.value) {
-      headlineEl.value = userProfile.headline;
-    }
-    if (userProfile.currentRole && !roleEl.value) {
-      roleEl.value = userProfile.currentRole;
-    }
+    if (userProfile.headline && !headlineEl.value) headlineEl.value = userProfile.headline;
+    if (userProfile.currentRole && !roleEl.value) roleEl.value = userProfile.currentRole;
   }
 }
 
@@ -963,32 +967,36 @@ function applyPastedProfile() {
 
   if (!raw) {
     statusEl.className = 'text-sm text-amber-600';
-    statusEl.textContent = 'Paste the text from the bookmarklet popup first.';
+    statusEl.textContent = 'Paste the copied text first (LIIMPORT:...).';
     statusEl.classList.remove('hidden');
     return;
   }
 
   try {
     const idx = raw.indexOf('LIIMPORT:');
-    if (idx === -1) throw new Error('Not a valid import string');
+    if (idx === -1) throw new Error('missing LIIMPORT prefix');
     const b64 = raw.slice(idx + 9).trim();
     const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
     const ids = {headline:'profileHeadline', about:'profileAbout', role:'profileRole'};
+    const imported = [];
     ['headline','about','role'].forEach(key => {
       if (data[key]) {
         const el = document.getElementById(ids[key]);
         el.value = data[key];
         el.style.background = '#f0fdf4';
-        setTimeout(() => { el.style.background = ''; }, 2000);
+        setTimeout(() => { el.style.background = ''; }, 2500);
+        imported.push(key.charAt(0).toUpperCase() + key.slice(1));
       }
     });
     document.getElementById('pasteInput').value = '';
-    statusEl.className = 'text-sm text-green-600';
-    statusEl.textContent = `✓ Imported: ${[data.headline && 'Headline', data.about && 'About', data.role && 'Role'].filter(Boolean).join(', ')}`;
+    statusEl.className = 'text-sm text-green-600 font-semibold';
+    statusEl.textContent = imported.length
+      ? `✓ Imported: ${imported.join(', ')} — scroll down to see the filled fields`
+      : '⚠️ Bookmarklet ran but found no data on the page';
     statusEl.classList.remove('hidden');
-  } catch {
+  } catch(e) {
     statusEl.className = 'text-sm text-red-500';
-    statusEl.textContent = 'Invalid data. Make sure you copied the full text from the bookmarklet popup.';
+    statusEl.textContent = `Error: ${e.message}. Copy the full LIIMPORT:... text from the bookmarklet panel.`;
     statusEl.classList.remove('hidden');
   }
 }
