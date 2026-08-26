@@ -270,10 +270,10 @@
         </ol>
       </div>
       <div class="space-y-2">
-        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v4 — drag to bookmarks bar</a>
+        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v5 — drag to bookmarks bar</a>
         <div class="flex gap-2 items-start">
           <textarea id="pasteInput" rows="2" class="input-field text-sm font-mono" placeholder="Paste the copied text here (LIIMPORT:...) and click Load Profile"></textarea>
-          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Load Profile v4</button>
+          <button onclick="applyPastedProfile()" class="btn btn-primary text-sm whitespace-nowrap">Load Profile v5</button>
         </div>
         <span id="importStatus" class="text-sm hidden"></span>
       </div>
@@ -924,37 +924,58 @@ function profileContext() {
 function buildBookmarklet() {
   const code = `(function(){
 var headline='',about='',role='';
-var h=document.querySelector('.text-body-medium.break-words');
-if(h)headline=h.innerText.trim();
-var aboutAnchor=document.querySelector('#about');
-if(aboutAnchor){var sec=aboutAnchor.closest('section');if(sec){var sp=sec.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>10)about=sp.innerText.trim();}}
-if(!about){document.querySelectorAll('section').forEach(function(s){var id=s.querySelector('[id]');if(id&&/about/i.test(id.id)&&!about){var sp=s.querySelector('span[aria-hidden="true"]');if(sp&&sp.innerText.length>10)about=sp.innerText.trim();}});}
-var expAnchor=document.querySelector('#experience');
-if(expAnchor){var expSec=expAnchor.closest('section');if(expSec){var bold=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');if(bold.length)role=bold[0].innerText.trim();}}
+
+/* --- HEADLINE --- */
+var hSelectors=['.text-body-medium.break-words','.pv-text-details__left-panel .break-words','.mt2.relative .text-body-medium','.pv-top-card--list .text-body-medium','[data-field="headline"]'];
+for(var i=0;i<hSelectors.length&&!headline;i++){var el=document.querySelector(hSelectors[i]);if(el&&el.innerText.trim().length>3)headline=el.innerText.trim();}
+/* broader fallback: span after h1 */
+if(!headline){var h1=document.querySelector('h1');if(h1){var sib=h1.parentElement&&h1.parentElement.nextElementSibling;if(sib){var sp=sib.querySelector('span[aria-hidden="true"]')||sib;if(sp&&sp.innerText.trim().length>3)headline=sp.innerText.trim();}}}
+
+/* --- ABOUT --- */
+var aboutAnchor=document.getElementById('about');
+if(aboutAnchor){
+  var sec=aboutAnchor;
+  while(sec&&sec.tagName!=='SECTION')sec=sec.parentElement;
+  if(sec){
+    /* try aria-hidden spans by length */
+    var spans=sec.querySelectorAll('span[aria-hidden="true"]');
+    for(var j=0;j<spans.length&&!about;j++){var t=spans[j].innerText.trim();if(t.length>30)about=t;}
+    /* fallback: biggest text block in section */
+    if(!about){var divs=sec.querySelectorAll('div,p');for(var k=0;k<divs.length&&!about;k++){var dt=divs[k].innerText.trim();if(dt.length>50&&dt.length<6000&&divs[k].children.length<4)about=dt;}}
+  }
+}
+
+/* --- ROLE (first experience item) --- */
+var expAnchor=document.getElementById('experience');
+if(expAnchor){
+  var expSec=expAnchor;
+  while(expSec&&expSec.tagName!=='SECTION')expSec=expSec.parentElement;
+  if(expSec){
+    /* t-bold spans */
+    var bold=expSec.querySelectorAll('.t-bold span[aria-hidden="true"]');
+    if(bold.length)role=bold[0].innerText.trim();
+    /* fallback: first substantial aria-hidden span */
+    if(!role){var rs=expSec.querySelectorAll('span[aria-hidden="true"]');for(var m=0;m<rs.length&&!role;m++){var rt=rs[m].innerText.trim();if(rt.length>4&&rt.length<120)role=rt;}}
+  }
+}
+
 var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
+
+/* show overlay */
 var ov=document.createElement('div');
-ov.setAttribute('style','position:fixed!important;top:20px!important;left:50%!important;transform:translateX(-50%)!important;background:#1e1b4b!important;color:#fff!important;border-radius:14px!important;padding:22px!important;max-width:480px!important;width:88%!important;z-index:2147483647!important;box-shadow:0 20px 60px rgba(0,0,0,.6)!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;');
-var msg=document.createElement('div');
-msg.setAttribute('style','font-size:14px!important;font-weight:bold!important;margin-bottom:8px!important;color:#fff!important;');
-msg.textContent='LinkedIn AI Assistant — Profile Extracted';
-var inst=document.createElement('div');
-inst.setAttribute('style','font-size:12px!important;color:#c7d2fe!important;margin-bottom:10px!important;');
-inst.textContent='The text below was copied to clipboard. Click elsewhere to close.';
-var ta=document.createElement('textarea');
-ta.setAttribute('style','width:100%!important;height:80px!important;background:#312e81!important;color:#a5b4fc!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:8px!important;padding:8px!important;font-size:10px!important;font-family:monospace!important;box-sizing:border-box!important;resize:none!important;');
-ta.readOnly=true;
-ta.value=payload;
-ov.appendChild(msg);ov.appendChild(inst);ov.appendChild(ta);
+ov.setAttribute('style','position:fixed!important;top:16px!important;left:50%!important;transform:translateX(-50%)!important;background:#1e1b4b!important;color:#fff!important;border-radius:14px!important;padding:20px!important;max-width:480px!important;width:88%!important;z-index:2147483647!important;box-shadow:0 20px 60px rgba(0,0,0,.6)!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;');
+var found=[headline&&'Headline',about&&'About',role&&'Role'].filter(Boolean);
+var status=found.length?'Found: '+found.join(', '):'⚠️ Nothing found — try scrolling the page down first, then run again';
+var statusColor=found.length?'#86efac':'#fbbf24';
+var msg='<div style="font-weight:bold!important;margin-bottom:6px!important;font-size:14px!important;">LinkedIn AI Assistant</div>';
+msg+='<div style="font-size:12px!important;color:'+statusColor+'!important;margin-bottom:10px!important;">'+status+'</div>';
+if(found.length){msg+='<textarea style="width:100%!important;height:70px!important;background:#312e81!important;color:#a5b4fc!important;border:1px solid rgba(255,255,255,.25)!important;border-radius:8px!important;padding:8px!important;font-size:10px!important;font-family:monospace!important;box-sizing:border-box!important;resize:none!important;" readonly id="_li_ta"></textarea><div style="font-size:11px!important;color:#c7d2fe!important;margin-top:8px!important;">^ Copy this, paste in the app, click Load Profile v5</div>';}
+msg+='<div style="text-align:right!important;margin-top:10px!important;"><span style="font-size:11px!important;color:#6366f1!important;cursor:pointer!important;" id="_li_x">✕ close</span></div>';
+ov.innerHTML=msg;
 document.body.appendChild(ov);
-ta.focus();ta.select();
-navigator.clipboard.writeText(payload).then(function(){
-  inst.textContent='✓ Copied to clipboard! Go back to the app and click "Load Profile v4".';
-  inst.setAttribute('style','font-size:12px!important;color:#86efac!important;margin-bottom:10px!important;font-weight:bold!important;');
-}).catch(function(){
-  ta.select();try{document.execCommand('copy');}catch(e){}
-  inst.textContent='Press Cmd+A then Cmd+C to copy, then paste in the app.';
-});
-document.addEventListener('click',function h(e){if(!ov.contains(e.target)){ov.remove();document.removeEventListener('click',h);}},{capture:true,once:false});
+if(found.length){var ta=document.getElementById('_li_ta');ta.value=payload;ta.focus();ta.select();navigator.clipboard.writeText(payload).catch(function(){});}
+document.getElementById('_li_x').onclick=function(){ov.remove();};
+document.addEventListener('keydown',function h(e){if(e.key==='Escape'){ov.remove();document.removeEventListener('keydown',h);}});
 })();`;
   const link = document.getElementById('bookmarkletLink');
   if (link) link.href = 'javascript:' + encodeURIComponent(code);
