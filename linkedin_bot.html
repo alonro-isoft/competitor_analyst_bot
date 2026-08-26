@@ -769,7 +769,7 @@ async function handleLinkedInMessage(event) {
       body: JSON.stringify({ code }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Token exchange failed');
+    if (!res.ok) throw new Error(typeof data.error === 'object' ? JSON.stringify(data.error) : (data.error || 'Token exchange failed'));
 
     accessToken = data.access_token;
     localStorage.setItem('li_access_token', accessToken);
