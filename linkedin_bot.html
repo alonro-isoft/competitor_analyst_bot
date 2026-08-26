@@ -1,0 +1,1460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LinkedIn AI Assistant</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Arial', sans-serif; background: #f3f4f6; }
+    .tab-btn.active { background: #4f46e5; color: #fff; }
+    .tab-btn { transition: all .2s; }
+    .card { background: #fff; border-radius: 1.25rem; box-shadow: 0 4px 16px rgba(0,0,0,.08); padding: 2rem; }
+    .input-field { width: 100%; padding: .7rem 1rem; border: 2px solid #e5e7eb; border-radius: .7rem; font-size: 1rem; transition: border-color .2s; }
+    .input-field:focus { border-color: #4f46e5; outline: none; box-shadow: 0 0 0 3px rgba(79,70,229,.15); }
+    textarea.input-field { resize: vertical; }
+    .btn { padding: .65rem 1.5rem; border-radius: .7rem; font-weight: 600; cursor: pointer; transition: all .2s; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #4338ca; transform: translateY(-1px); }
+    .btn-linkedin { background: #0077b5; color: #fff; }
+    .btn-linkedin:hover:not(:disabled) { background: #005f8f; transform: translateY(-1px); }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-green:hover:not(:disabled) { background: #15803d; transform: translateY(-1px); }
+    .btn-outline { border: 2px solid #4f46e5; color: #4f46e5; background: transparent; }
+    .btn-outline:hover:not(:disabled) { background: #eef2ff; }
+    .btn-danger { background: #dc2626; color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+    .ai-result { background: #f8faff; border: 1px solid #c7d2fe; border-radius: .7rem; padding: 1.5rem; line-height: 1.9; font-size: 0.97rem; word-break: break-word; }
+    .ai-result h1,.ai-result h2,.ai-result h3 { font-weight: 700; margin: 1rem 0 .4rem; color: #1f2937; }
+    .ai-result h2 { font-size: 1.1rem; color: #4338ca; }
+    .ai-result h3 { font-size: 1rem; color: #374151; }
+    .ai-result strong { font-weight: 700; color: #1f2937; }
+    .ai-result ul,.ai-result ol { padding-left: 1.5rem; margin: .5rem 0; }
+    .ai-result li { margin: .25rem 0; }
+    .ai-result p { margin: .6rem 0; }
+    .profile-pic { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; }
+    .char-counter { font-size: .85rem; }
+    .char-counter.warn { color: #d97706; }
+    .char-counter.over { color: #dc2626; }
+    .spinner { display: inline-block; width: 1.1rem; height: 1.1rem; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: middle; margin-left: .4rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::after { content: ' ▼'; font-size: .75rem; }
+    details[open] > summary::after { content: ' ▲'; }
+    .post-history-item { border: 1px solid #e5e7eb; border-radius: .5rem; padding: .75rem; font-size: .9rem; }
+  </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <!-- Header -->
+  <div class="text-center">
+    <h1 class="text-3xl font-bold text-indigo-700">LinkedIn AI Assistant</h1>
+    <p class="text-gray-500 mt-1">Profile Analysis · Network Strategy · Post Publishing</p>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <details id="settingsDetails">
+      <summary class="font-semibold text-gray-700 flex items-center gap-2">
+        <span>⚙️ Settings</span>
+      </summary>
+      <div class="mt-4 space-y-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">LinkedIn Client ID <span class="text-xs text-gray-400">(from your LinkedIn Developer App)</span></label>
+          <input id="clientId" type="text" class="input-field" placeholder="86xxxxxxxxxxxxxxxx">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Gemini API Key</label>
+          <input id="geminiKey" type="password" class="input-field" placeholder="AIzaSy...">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Local Server URL</label>
+          <input id="serverUrl" type="text" class="input-field" value="http://localhost:3000">
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+          <strong>Setup instructions:</strong>
+          <ol class="list-decimal list-inside mt-1 space-y-1">
+            <li>Create a LinkedIn App at <a href="https://www.linkedin.com/developers/" target="_blank" class="underline">linkedin.com/developers</a></li>
+            <li>Add Redirect URL: <code class="bg-blue-100 px-1 rounded">http://localhost:3000/auth/linkedin/callback</code></li>
+            <li>Add Scopes: <code class="bg-blue-100 px-1 rounded">openid profile email w_member_social</code></li>
+            <li>Add credentials to your <code class="bg-blue-100 px-1 rounded">.env</code> file</li>
+            <li>Run <code class="bg-blue-100 px-1 rounded">npm install && npm start</code></li>
+          </ol>
+        </div>
+        <button onclick="saveSettings()" class="btn btn-primary">Save Settings</button>
+        <span id="settingsSaved" class="text-green-600 text-sm hidden">✓ Saved</span>
+      </div>
+    </details>
+  </div>
+
+  <!-- Login / Logout bar -->
+  <div class="card flex items-center justify-between gap-3 flex-wrap">
+    <div id="loginStatus" class="flex items-center gap-3">
+      <div id="loginIndicator" class="w-3 h-3 rounded-full bg-gray-300"></div>
+      <span id="loginText" class="text-gray-500">Not connected to LinkedIn</span>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <button id="loginBtn" onclick="linkedinLogin()" class="btn btn-linkedin">
+        🔗 Connect to LinkedIn
+      </button>
+      <button id="logoutBtn" onclick="linkedinLogout()" class="btn btn-danger hidden">
+        Disconnect
+      </button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="flex gap-2 bg-gray-100 p-1 rounded-xl">
+    <button onclick="showTab('dashboard')" id="tab-dashboard" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600 active">📊 Dashboard</button>
+    <button onclick="showTab('profile')" id="tab-profile" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600">👤 Profile</button>
+    <button onclick="showTab('network')" id="tab-network" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600">🌐 Network</button>
+    <button onclick="showTab('post')" id="tab-post" class="tab-btn flex-1 py-2 rounded-lg text-sm font-medium text-gray-600">✍️ Post</button>
+  </div>
+
+  <!-- ── TAB: DASHBOARD ── -->
+  <div id="tab-dashboard-content" class="space-y-4">
+
+    <!-- Generate button -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">📊 Brand Dashboard — Alon Roshianu</h3>
+      <p class="text-sm text-gray-500">AI-powered telemetry on your LinkedIn profile focus, audience fit, and competitive positioning. Fill in your profile details first (Profile tab), then generate.</p>
+      <button id="dashboardBtn" onclick="generateDashboard()" class="btn btn-primary" disabled>
+        Generate My Dashboard
+      </button>
+      <div id="dashboardLoading" class="hidden text-gray-400 text-sm">Analyzing your profile...</div>
+    </div>
+
+    <!-- Score Cards -->
+    <div id="scoreCards" class="hidden grid grid-cols-2 gap-3">
+      <div class="card text-center space-y-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Profile Focus</p>
+        <div id="scoreFocus" class="text-4xl font-bold">—</div>
+        <div class="w-full bg-gray-100 rounded-full h-2"><div id="barFocus" class="h-2 rounded-full transition-all" style="width:0%"></div></div>
+        <p id="labelFocus" class="text-xs text-gray-400"></p>
+      </div>
+      <div class="card text-center space-y-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Audience Alignment</p>
+        <div id="scoreAudience" class="text-4xl font-bold">—</div>
+        <div class="w-full bg-gray-100 rounded-full h-2"><div id="barAudience" class="h-2 rounded-full transition-all" style="width:0%"></div></div>
+        <p id="labelAudience" class="text-xs text-gray-400"></p>
+      </div>
+      <div class="card text-center space-y-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Brand Strength</p>
+        <div id="scoreBrand" class="text-4xl font-bold">—</div>
+        <div class="w-full bg-gray-100 rounded-full h-2"><div id="barBrand" class="h-2 rounded-full transition-all" style="width:0%"></div></div>
+        <p id="labelBrand" class="text-xs text-gray-400"></p>
+      </div>
+      <div class="card text-center space-y-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">vs. Peers</p>
+        <div id="scorePeer" class="text-4xl font-bold">—</div>
+        <div class="w-full bg-gray-100 rounded-full h-2"><div id="barPeer" class="h-2 rounded-full transition-all" style="width:0%"></div></div>
+        <p id="labelPeer" class="text-xs text-gray-400"></p>
+      </div>
+    </div>
+
+    <!-- Brand Positioning -->
+    <div id="brandPositioningCard" class="card hidden space-y-2">
+      <h4 class="font-semibold text-gray-700">🎯 Brand Positioning</h4>
+      <p id="brandPositioningText" class="text-gray-600 text-sm leading-relaxed"></p>
+      <div class="flex flex-wrap gap-2 mt-1" id="brandTags"></div>
+    </div>
+
+    <!-- Strengths & Improvements -->
+    <div id="strengthsCard" class="card hidden">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h4 class="font-semibold text-green-700 mb-2">✅ What's working</h4>
+          <ul id="strengthsList" class="space-y-1 text-sm text-gray-700"></ul>
+        </div>
+        <div>
+          <h4 class="font-semibold text-amber-600 mb-2">⚡ Critical improvements</h4>
+          <ul id="improvementsList" class="space-y-1 text-sm text-gray-700"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- What to Remove -->
+    <div id="removeCard" class="card hidden space-y-2">
+      <h4 class="font-semibold text-red-600">🗑️ What to remove or cut</h4>
+      <ul id="removeList" class="space-y-1 text-sm text-gray-700"></ul>
+    </div>
+
+    <!-- Content Strategy -->
+    <div id="contentStrategyCard" class="card hidden space-y-3">
+      <h4 class="font-semibold text-gray-700">📅 Content Strategy</h4>
+      <div class="grid grid-cols-3 gap-3 text-center text-sm">
+        <div class="bg-indigo-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-1">Ideal frequency</p>
+          <p id="postFrequency" class="font-bold text-indigo-700"></p>
+        </div>
+        <div class="bg-indigo-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-1">Est. weekly reach</p>
+          <p id="weeklyReach" class="font-bold text-indigo-700"></p>
+        </div>
+        <div class="bg-indigo-50 rounded-lg p-3">
+          <p class="text-xs text-gray-500 mb-1">Avg views/post</p>
+          <p id="avgViews" class="font-bold text-indigo-700"></p>
+        </div>
+      </div>
+      <div>
+        <p class="text-xs font-semibold text-gray-500 mb-2">Best performing post types</p>
+        <div id="bestPostTypes" class="flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+
+    <!-- Post Performance Tracker -->
+    <div class="card space-y-3">
+      <h4 class="font-semibold text-gray-700">📈 Post Performance Tracker</h4>
+      <p class="text-sm text-gray-500">Log your actual post metrics to track trends over time</p>
+      <div class="grid grid-cols-4 gap-2">
+        <div><label class="text-xs text-gray-500">Date</label><input id="trackDate" type="date" class="input-field text-sm"></div>
+        <div><label class="text-xs text-gray-500">Views</label><input id="trackViews" type="number" class="input-field text-sm" placeholder="0"></div>
+        <div><label class="text-xs text-gray-500">Likes</label><input id="trackLikes" type="number" class="input-field text-sm" placeholder="0"></div>
+        <div><label class="text-xs text-gray-500">Comments</label><input id="trackComments" type="number" class="input-field text-sm" placeholder="0"></div>
+      </div>
+      <div>
+        <label class="text-xs text-gray-500">Post topic (optional)</label>
+        <input id="trackTopic" type="text" class="input-field text-sm" placeholder="e.g. Cybersecurity trends">
+      </div>
+      <button onclick="logPostMetric()" class="btn btn-outline text-sm">+ Log Post</button>
+      <div id="metricsTable" class="hidden">
+        <div class="grid grid-cols-4 gap-3 text-center mt-3 bg-indigo-50 rounded-lg p-3">
+          <div><p class="text-xs text-gray-500">Avg Views</p><p id="avgViewsStat" class="font-bold text-indigo-700 text-lg">—</p></div>
+          <div><p class="text-xs text-gray-500">Avg Likes</p><p id="avgLikesStat" class="font-bold text-indigo-700 text-lg">—</p></div>
+          <div><p class="text-xs text-gray-500">Avg Comments</p><p id="avgCommentsStat" class="font-bold text-indigo-700 text-lg">—</p></div>
+          <div><p class="text-xs text-gray-500">Eng. Rate</p><p id="engRateStat" class="font-bold text-indigo-700 text-lg">—</p></div>
+        </div>
+        <div id="metricsList" class="space-y-1 mt-3"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: PROFILE ── -->
+  <div id="tab-profile-content" class="space-y-4 hidden">
+
+    <!-- Profile card -->
+    <div class="card" id="profileCard">
+      <div id="profileEmpty" class="text-center text-gray-400 py-6">
+        Connect to LinkedIn to view your profile
+      </div>
+      <div id="profileData" class="hidden space-y-4">
+        <div class="flex items-center gap-4">
+          <img id="profilePic" src="" alt="" class="profile-pic border-2 border-indigo-200" onerror="this.src='data:image/svg+xml,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 80\'><rect width=\'80\' height=\'80\' fill=\'%234f46e5\'/><text x=\'40\' y=\'52\' font-size=\'36\' text-anchor=\'middle\' fill=\'white\'>?</text></svg>'">
+          <div>
+            <h2 id="profileName" class="text-xl font-bold text-gray-800"></h2>
+            <p id="profileEmail" class="text-gray-500 text-sm"></p>
+            <p id="profileSub" class="text-xs text-gray-400 mt-1"></p>
+          </div>
+        </div>
+        <button onclick="fetchProfile(true)" class="btn btn-outline text-sm">🔄 Refresh Profile</button>
+        <span id="refreshStatus" class="text-sm hidden"></span>
+      </div>
+    </div>
+
+    <!-- Bookmarklet import -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">⚡ Auto-Fill from LinkedIn Page</h3>
+      <p class="text-sm text-gray-500">Use the bookmarklet below to automatically import your Headline, About section, and Current Role straight from your LinkedIn profile page.</p>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 space-y-2">
+        <p class="font-semibold">How to use (v8 — one paste only):</p>
+        <ol class="list-decimal list-inside space-y-1">
+          <li>Drag the blue button below to your browser's bookmarks bar <em>(one-time setup)</em></li>
+          <li>Go to your <a href="https://www.linkedin.com/in/me/" target="_blank" class="underline font-medium">LinkedIn profile page</a></li>
+          <li>Click the bookmarklet — it <strong>auto-copies</strong> the data and shows "✓ Copied!"</li>
+          <li>Switch back here and press <strong>Cmd+V</strong> in the box below, then click <strong>Apply ✓</strong></li>
+        </ol>
+      </div>
+      <div class="space-y-2">
+        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v8 — drag to bookmarks bar</a>
+        <div class="flex gap-2 mt-2">
+          <textarea id="pasteInput" rows="2" class="input-field text-xs font-mono flex-1" placeholder="Paste here (Cmd+V) after running the bookmarklet…"></textarea>
+          <button onclick="applyPastedProfile()" class="btn btn-green text-sm self-start whitespace-nowrap">Apply ✓</button>
+        </div>
+        <span id="importStatus" class="text-sm hidden"></span>
+      </div>
+    </div>
+
+    <!-- AI Profile Analysis -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">🤖 AI Profile Analysis</h3>
+      <p class="text-sm text-gray-500">Analyze your LinkedIn profile and get personalized, actionable recommendations</p>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Your LinkedIn Headline</label>
+        <input id="profileHeadline" type="text" class="input-field" placeholder="e.g. B2B Cybersecurity Sales | Helping CISOs reduce risk">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Your About Section</label>
+        <textarea id="profileAbout" rows="4" class="input-field" placeholder="Paste your About section here, or use the bookmarklet above to import it automatically."></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Current Role & Company</label>
+        <input id="profileRole" type="text" class="input-field" placeholder="e.g. Account Executive at CyberArk, B2B SaaS">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">LinkedIn Goals</label>
+        <textarea id="profileGoals" rows="2" class="input-field" placeholder="e.g. Generate leads from IT managers, build personal brand in cybersecurity"></textarea>
+      </div>
+      <button id="analyzeProfileBtn" onclick="analyzeProfile()" class="btn btn-primary" disabled>
+        Analyze Profile
+      </button>
+      <div id="profileAnalysisResult" class="hidden">
+        <div id="profileAnalysisText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('profileAnalysisText')" class="btn btn-outline text-sm mt-2">📋 Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TAB: NETWORK ── -->
+  <div id="tab-network-content" class="space-y-4 hidden">
+
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">🌐 Personalized Network Strategy</h3>
+      <p class="text-sm text-gray-500">Get tailored recommendations for growing your professional network</p>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Who do you want to connect with?</label>
+        <textarea id="networkTarget" rows="2" class="input-field" placeholder="e.g. IT Security managers at mid-market companies, CISOs in FinTech"></textarea>
+      </div>
+      <button id="networkStrategyBtn" onclick="generateNetworkStrategy()" class="btn btn-primary" disabled>
+        Build Network Strategy
+      </button>
+      <div id="networkStrategyResult" class="hidden">
+        <div id="networkStrategyText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('networkStrategyText')" class="btn btn-outline text-sm mt-2">📋 Copy</button>
+      </div>
+    </div>
+
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">💬 Connection Message Generator</h3>
+      <p class="text-sm text-gray-500">Write a personalized connection request (max 300 chars)</p>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">About the person you want to connect with</label>
+        <textarea id="connectionPersonInfo" rows="2" class="input-field" placeholder="e.g. CISO at a FinTech startup, met at RSA Conference 2024"></textarea>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Reason for connecting</label>
+        <input id="connectionReason" type="text" class="input-field" placeholder="e.g. Explore partnership, learn from their experience, follow up from event">
+      </div>
+      <button id="connectionMsgBtn" onclick="generateConnectionMessage()" class="btn btn-primary" disabled>
+        Generate Connection Message
+      </button>
+      <div id="connectionMsgResult" class="hidden">
+        <div id="connectionMsgText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('connectionMsgText')" class="btn btn-outline text-sm mt-2">📋 Copy</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── TAB: POST ── -->
+  <div id="tab-post-content" class="space-y-4 hidden">
+
+    <!-- AI Post Ideas -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">💡 Post Ideas</h3>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Topic / Focus area</label>
+        <input id="postTopic" type="text" class="input-field" placeholder="e.g. AI in B2B sales, managing remote teams, cybersecurity trends">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-600 mb-1">Style</label>
+        <select id="postStyle" class="input-field">
+          <option value="Professional and informative">Professional and informative</option>
+          <option value="Personal story and inspiring">Personal story and inspiring</option>
+          <option value="Question to spark discussion">Question to spark discussion</option>
+          <option value="Actionable tips list">Actionable tips list</option>
+          <option value="Contrarian insight">Contrarian insight</option>
+        </select>
+      </div>
+      <button id="postIdeasBtn" onclick="generatePostIdeas()" class="btn btn-primary" disabled>
+        Generate Ideas
+      </button>
+      <div id="postIdeasResult" class="hidden">
+        <div id="postIdeasText" class="ai-result mt-3"></div>
+        <button onclick="copyToClipboard('postIdeasText')" class="btn btn-outline text-sm mt-2">📋 Copy</button>
+      </div>
+    </div>
+
+    <!-- Post Composer -->
+    <div class="card space-y-3">
+      <h3 class="font-semibold text-gray-700">✍️ Write a Post</h3>
+      <div class="space-y-1">
+        <textarea id="postContent" rows="7" class="input-field" placeholder="Write your post here..." oninput="updateCharCounter()"></textarea>
+        <div class="flex justify-between items-center">
+          <span id="charCounter" class="char-counter text-gray-400">0 / 3000</span>
+          <button onclick="improvePost()" id="improvePostBtn" class="btn btn-outline text-sm" disabled>🪄 Improve with AI</button>
+        </div>
+      </div>
+      <div id="improvedPostResult" class="hidden space-y-2">
+        <p class="text-sm font-medium text-gray-600">Improved version:</p>
+        <div id="improvedPostText" class="ai-result"></div>
+        <button onclick="useImprovedPost()" class="btn btn-outline text-sm">← Use this version</button>
+      </div>
+      <!-- Save Draft -->
+      <div class="flex gap-2 items-center flex-wrap">
+        <input id="draftName" type="text" class="input-field" style="flex:1;min-width:160px" placeholder="Draft name (e.g. v1, hook idea, final)">
+        <button onclick="saveDraft()" class="btn btn-outline text-sm whitespace-nowrap">💾 Save Draft</button>
+      </div>
+      <div id="draftSavedMsg" class="text-green-600 text-sm hidden">✓ Draft saved</div>
+      <div class="flex gap-2 flex-wrap">
+        <button id="publishBtn" onclick="publishPost()" class="btn btn-green" disabled>
+          🚀 Publish to LinkedIn
+        </button>
+        <button onclick="clearPost()" class="btn btn-outline text-sm">Clear</button>
+      </div>
+      <div id="publishStatus" class="hidden"></div>
+    </div>
+
+    <!-- Drafts -->
+    <div class="card space-y-3">
+      <div class="flex justify-between items-center">
+        <h3 class="font-semibold text-gray-700">💾 Saved Drafts</h3>
+        <button onclick="clearAllDrafts()" class="text-xs text-gray-400 hover:text-red-500">Clear all</button>
+      </div>
+      <div id="draftsList" class="space-y-2">
+        <p class="text-gray-400 text-sm">No drafts saved yet</p>
+      </div>
+    </div>
+
+    <!-- Post History -->
+    <div class="card space-y-3">
+      <div class="flex justify-between items-center">
+        <h3 class="font-semibold text-gray-700">📜 Post History</h3>
+        <button onclick="clearHistory()" class="text-xs text-gray-400 hover:text-red-500">Clear all</button>
+      </div>
+      <div id="postHistory" class="space-y-2">
+        <p class="text-gray-400 text-sm">No posts yet</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+function scoreColor(n) {
+  if (n >= 75) return '#16a34a';
+  if (n >= 50) return '#d97706';
+  return '#dc2626';
+}
+
+function setScore(id, value, label) {
+  document.getElementById(`score${id}`).textContent = value;
+  document.getElementById(`score${id}`).style.color = scoreColor(value);
+  document.getElementById(`bar${id}`).style.width = `${value}%`;
+  document.getElementById(`bar${id}`).style.background = scoreColor(value);
+  document.getElementById(`label${id}`).textContent = label;
+}
+
+async function generateDashboard() {
+  const ctx = profileContext();
+  if (ctx.trim() === `Name: ${userProfile?.name || ''}`) {
+    alert('Fill in your Headline or About section in the Profile tab first');
+    showTab('profile');
+    return;
+  }
+
+  const btn = document.getElementById('dashboardBtn');
+  const loading = document.getElementById('dashboardLoading');
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+  loading.classList.remove('hidden');
+
+  ['scoreCards','brandPositioningCard','strengthsCard','removeCard','contentStrategyCard'].forEach(id =>
+    document.getElementById(id).classList.add('hidden')
+  );
+
+  const prompt = `You are a LinkedIn personal branding analyst specializing in B2B sales and cybersecurity. Analyze this profile and return ONLY valid JSON — no markdown, no explanation, just the JSON object.
+
+Profile:
+${ctx}
+
+Return this exact JSON structure (all fields required, numbers 0-100):
+{
+  "focusScore": 0,
+  "focusLabel": "one-line verdict on focus",
+  "audienceScore": 0,
+  "audienceLabel": "one-line verdict on audience fit",
+  "brandScore": 0,
+  "brandLabel": "one-line verdict on brand strength",
+  "peerScore": 0,
+  "peerLabel": "one-line vs. peers verdict",
+  "brandPositioning": "2-3 sentence brand summary for Alon Roshianu",
+  "brandTags": ["tag1", "tag2", "tag3"],
+  "strengths": ["strength 1", "strength 2", "strength 3"],
+  "improvements": ["improvement 1", "improvement 2", "improvement 3"],
+  "thingsToRemove": ["remove 1", "remove 2"],
+  "postFrequency": "X times per week",
+  "weeklyReach": "X–Y people",
+  "avgViewsEstimate": "X–Y views",
+  "bestPostTypes": ["type1", "type2", "type3"]
+}`;
+
+  try {
+    const raw = await callGemini(prompt);
+    const json = JSON.parse(raw.replace(/```json|```/g, '').trim());
+
+    setScore('Focus', json.focusScore, json.focusLabel);
+    setScore('Audience', json.audienceScore, json.audienceLabel);
+    setScore('Brand', json.brandScore, json.brandLabel);
+    setScore('Peer', json.peerScore, json.peerLabel);
+
+    document.getElementById('brandPositioningText').textContent = json.brandPositioning;
+    document.getElementById('brandTags').innerHTML = (json.brandTags || [])
+      .map(t => `<span class="tag">${t}</span>`).join('');
+
+    document.getElementById('strengthsList').innerHTML = (json.strengths || [])
+      .map(s => `<li class="flex gap-2"><span class="text-green-500">✓</span>${s}</li>`).join('');
+    document.getElementById('improvementsList').innerHTML = (json.improvements || [])
+      .map(s => `<li class="flex gap-2"><span class="text-amber-500">→</span>${s}</li>`).join('');
+
+    document.getElementById('removeList').innerHTML = (json.thingsToRemove || [])
+      .map(s => `<li class="flex gap-2"><span class="text-red-400">✕</span>${s}</li>`).join('');
+
+    document.getElementById('postFrequency').textContent = json.postFrequency || '—';
+    document.getElementById('weeklyReach').textContent = json.weeklyReach || '—';
+    document.getElementById('avgViews').textContent = json.avgViewsEstimate || '—';
+    document.getElementById('bestPostTypes').innerHTML = (json.bestPostTypes || [])
+      .map(t => `<span class="tag">${t}</span>`).join('');
+
+    ['scoreCards','brandPositioningCard','strengthsCard','removeCard','contentStrategyCard'].forEach(id =>
+      document.getElementById(id).classList.remove('hidden')
+    );
+
+    localStorage.setItem('dashboard_cache', JSON.stringify({ json, ctx, date: new Date().toISOString() }));
+  } catch (err) {
+    alert(`Dashboard error: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Regenerate Dashboard';
+    loading.classList.add('hidden');
+  }
+}
+
+// ─── Post Metrics Tracker ─────────────────────────────────────────────────────
+function logPostMetric() {
+  const views = parseInt(document.getElementById('trackViews').value) || 0;
+  const likes = parseInt(document.getElementById('trackLikes').value) || 0;
+  const comments = parseInt(document.getElementById('trackComments').value) || 0;
+  const date = document.getElementById('trackDate').value || new Date().toISOString().slice(0, 10);
+  const topic = document.getElementById('trackTopic').value.trim();
+
+  if (!views && !likes && !comments) { alert('Enter at least one metric'); return; }
+
+  const metrics = JSON.parse(localStorage.getItem('post_metrics') || '[]');
+  metrics.unshift({ date, views, likes, comments, topic });
+  if (metrics.length > 50) metrics.pop();
+  localStorage.setItem('post_metrics', JSON.stringify(metrics));
+
+  document.getElementById('trackViews').value = '';
+  document.getElementById('trackLikes').value = '';
+  document.getElementById('trackComments').value = '';
+  document.getElementById('trackTopic').value = '';
+  renderMetrics();
+}
+
+function renderMetrics() {
+  const metrics = JSON.parse(localStorage.getItem('post_metrics') || '[]');
+  const table = document.getElementById('metricsTable');
+  if (!metrics.length) { table.classList.add('hidden'); return; }
+  table.classList.remove('hidden');
+
+  const avg = arr => Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+  const avgV = avg(metrics.map(m => m.views));
+  const avgL = avg(metrics.map(m => m.likes));
+  const avgC = avg(metrics.map(m => m.comments));
+  const engRate = avgV > 0 ? (((avgL + avgC) / avgV) * 100).toFixed(1) + '%' : '—';
+
+  document.getElementById('avgViewsStat').textContent = avgV.toLocaleString();
+  document.getElementById('avgLikesStat').textContent = avgL;
+  document.getElementById('avgCommentsStat').textContent = avgC;
+  document.getElementById('engRateStat').textContent = engRate;
+
+  document.getElementById('metricsList').innerHTML = metrics.map((m, i) => `
+    <div class="flex items-center justify-between text-xs text-gray-600 py-1 border-b border-gray-100">
+      <span class="text-gray-400 w-20">${m.date}</span>
+      <span class="flex-1 text-gray-700 truncate px-2">${m.topic || '—'}</span>
+      <span class="w-16 text-center">${m.views.toLocaleString()} views</span>
+      <span class="w-12 text-center">${m.likes} 👍</span>
+      <span class="w-12 text-center">${m.comments} 💬</span>
+      <button onclick="deleteMetric(${i})" class="text-red-300 hover:text-red-500 ml-2">✕</button>
+    </div>
+  `).join('');
+}
+
+function deleteMetric(i) {
+  const metrics = JSON.parse(localStorage.getItem('post_metrics') || '[]');
+  metrics.splice(i, 1);
+  localStorage.setItem('post_metrics', JSON.stringify(metrics));
+  renderMetrics();
+}
+
+// ─── Markdown renderer ───────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const lines = escaped.split('\n');
+  let html = '';
+  let inList = false;
+
+  for (const raw of lines) {
+    const line = raw
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    if (/^### (.+)/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h3>${line.replace(/^### /, '')}</h3>`;
+    } else if (/^## (.+)/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h2>${line.replace(/^## /, '')}</h2>`;
+    } else if (/^# (.+)/.test(line)) {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<h1>${line.replace(/^# /, '')}</h1>`;
+    } else if (/^[\*\-] (.+)/.test(line)) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${line.replace(/^[\*\-] /, '')}</li>`;
+    } else if (/^\d+\. (.+)/.test(line)) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${line.replace(/^\d+\. /, '')}</li>`;
+    } else if (line.trim() === '') {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += '<br>';
+    } else {
+      if (inList) { html += '</ul>'; inList = false; }
+      html += `<p>${line}</p>`;
+    }
+  }
+  if (inList) html += '</ul>';
+  return html;
+}
+
+function setAiResult(elementId, text) {
+  document.getElementById(elementId).innerHTML = renderMarkdown(text);
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let accessToken = localStorage.getItem('li_access_token') || null;
+let userProfile = JSON.parse(localStorage.getItem('li_profile') || 'null');
+
+function restoreDashboardCache() {
+  const cache = JSON.parse(localStorage.getItem('dashboard_cache') || 'null');
+  if (!cache) return;
+  const { json } = cache;
+  try {
+    setScore('Focus', json.focusScore, json.focusLabel);
+    setScore('Audience', json.audienceScore, json.audienceLabel);
+    setScore('Brand', json.brandScore, json.brandLabel);
+    setScore('Peer', json.peerScore, json.peerLabel);
+    document.getElementById('brandPositioningText').textContent = json.brandPositioning;
+    document.getElementById('brandTags').innerHTML = (json.brandTags || []).map(t => `<span class="tag">${t}</span>`).join('');
+    document.getElementById('strengthsList').innerHTML = (json.strengths || []).map(s => `<li class="flex gap-2"><span class="text-green-500">✓</span>${s}</li>`).join('');
+    document.getElementById('improvementsList').innerHTML = (json.improvements || []).map(s => `<li class="flex gap-2"><span class="text-amber-500">→</span>${s}</li>`).join('');
+    document.getElementById('removeList').innerHTML = (json.thingsToRemove || []).map(s => `<li class="flex gap-2"><span class="text-red-400">✕</span>${s}</li>`).join('');
+    document.getElementById('postFrequency').textContent = json.postFrequency || '—';
+    document.getElementById('weeklyReach').textContent = json.weeklyReach || '—';
+    document.getElementById('avgViews').textContent = json.avgViewsEstimate || '—';
+    document.getElementById('bestPostTypes').innerHTML = (json.bestPostTypes || []).map(t => `<span class="tag">${t}</span>`).join('');
+    ['scoreCards','brandPositioningCard','strengthsCard','removeCard','contentStrategyCard'].forEach(id =>
+      document.getElementById(id).classList.remove('hidden')
+    );
+    const btn = document.getElementById('dashboardBtn');
+    if (btn) btn.textContent = 'Regenerate Dashboard';
+  } catch (_) { localStorage.removeItem('dashboard_cache'); }
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+function init() {
+  document.getElementById('clientId').value = localStorage.getItem('li_client_id') || '';
+  document.getElementById('geminiKey').value = localStorage.getItem('gemini_key') || '';
+  document.getElementById('serverUrl').value = localStorage.getItem('server_url') || 'http://localhost:3000';
+  updateLoginUI();
+  // AI features only need Gemini key — always enable them
+  ['dashboardBtn', 'analyzeProfileBtn', 'networkStrategyBtn', 'connectionMsgBtn',
+   'postIdeasBtn', 'improvePostBtn'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
+  renderPostHistory();
+  renderDrafts();
+  renderMetrics();
+  restoreDashboardCache();
+  buildBookmarklet();
+  document.getElementById('trackDate').value = new Date().toISOString().slice(0, 10);
+  if (accessToken && !userProfile) fetchProfile();
+}
+
+function saveSettings() {
+  localStorage.setItem('li_client_id', document.getElementById('clientId').value.trim());
+  localStorage.setItem('gemini_key', document.getElementById('geminiKey').value.trim());
+  localStorage.setItem('server_url', document.getElementById('serverUrl').value.trim());
+  buildBookmarklet();
+  const saved = document.getElementById('settingsSaved');
+  saved.classList.remove('hidden');
+  setTimeout(() => saved.classList.add('hidden'), 2000);
+}
+
+// ─── Tab navigation ──────────────────────────────────────────────────────────
+function showTab(name) {
+  ['dashboard', 'profile', 'network', 'post'].forEach(t => {
+    document.getElementById(`tab-${t}-content`).classList.toggle('hidden', t !== name);
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === name);
+    document.getElementById(`tab-${t}`).classList.toggle('text-gray-600', t !== name);
+  });
+}
+
+// ─── LinkedIn OAuth ──────────────────────────────────────────────────────────
+function linkedinLogin() {
+  const clientId = localStorage.getItem('li_client_id') || document.getElementById('clientId').value.trim();
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  if (!clientId) {
+    alert('Please enter your Client ID in Settings first');
+    document.getElementById('settingsDetails').open = true;
+    return;
+  }
+
+  const state = Math.random().toString(36).slice(2);
+  sessionStorage.setItem('li_oauth_state', state);
+
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: clientId,
+    redirect_uri: `${serverUrl}/auth/linkedin/callback`,
+    state,
+    scope: 'openid profile email w_member_social',
+  });
+
+  const popup = window.open(
+    `https://www.linkedin.com/oauth/v2/authorization?${params}`,
+    'linkedin_auth',
+    'width=600,height=700,left=200,top=100'
+  );
+
+  if (!popup) {
+    alert('Popup blocked — please allow popups for this page and try again');
+    return;
+  }
+
+  window.addEventListener('message', handleLinkedInMessage, { once: true });
+}
+
+async function handleLinkedInMessage(event) {
+  const { type, code, state, error } = event.data || {};
+  if (type !== 'LINKEDIN_AUTH') return;
+
+  if (error) {
+    alert(`Connection error: ${error}`);
+    return;
+  }
+
+  const savedState = sessionStorage.getItem('li_oauth_state');
+  if (state !== savedState) {
+    alert('Security error: state mismatch. Please try again.');
+    return;
+  }
+
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  try {
+    setLoginBtnLoading(true);
+    const res = await fetch(`${serverUrl}/api/linkedin/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(typeof data.error === 'object' ? JSON.stringify(data.error) : (data.error || 'Token exchange failed'));
+
+    accessToken = data.access_token;
+    localStorage.setItem('li_access_token', accessToken);
+    await fetchProfile();
+  } catch (err) {
+    alert(`Login error: ${err.message}`);
+  } finally {
+    setLoginBtnLoading(false);
+  }
+}
+
+function linkedinLogout() {
+  accessToken = null;
+  userProfile = null;
+  localStorage.removeItem('li_access_token');
+  localStorage.removeItem('li_profile');
+  updateLoginUI();
+}
+
+function setLoginBtnLoading(loading) {
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML = loading
+    ? '🔗 Connecting...<span class="spinner"></span>'
+    : '🔗 Connect to LinkedIn';
+  btn.disabled = loading;
+}
+
+// ─── Profile ─────────────────────────────────────────────────────────────────
+async function fetchProfile(showFeedback = false) {
+  if (!accessToken) return;
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+
+  const statusEl = document.getElementById('refreshStatus');
+  const btn = document.querySelector('[onclick="fetchProfile(true)"]');
+
+  if (showFeedback && btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ Refreshing...';
+  }
+  if (statusEl) statusEl.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${serverUrl}/api/linkedin/profile`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      if (res.status === 401) { linkedinLogout(); return; }
+      throw new Error(`Server error ${res.status}`);
+    }
+    userProfile = await res.json();
+    localStorage.setItem('li_profile', JSON.stringify(userProfile));
+    updateLoginUI();
+
+    if (showFeedback && statusEl) {
+      statusEl.className = 'text-sm text-green-600';
+      statusEl.textContent = '✓ Profile refreshed';
+      statusEl.classList.remove('hidden');
+      setTimeout(() => statusEl.classList.add('hidden'), 2500);
+    }
+  } catch (err) {
+    if (showFeedback && statusEl) {
+      statusEl.className = 'text-sm text-red-500';
+      statusEl.textContent = `Error: ${err.message} — is the server running?`;
+      statusEl.classList.remove('hidden');
+    }
+  } finally {
+    if (showFeedback && btn) {
+      btn.disabled = false;
+      btn.textContent = '🔄 Refresh Profile';
+    }
+  }
+}
+
+function updateLoginUI() {
+  const loggedIn = !!accessToken && !!userProfile;
+  document.getElementById('loginBtn').classList.toggle('hidden', loggedIn);
+  document.getElementById('logoutBtn').classList.toggle('hidden', !loggedIn);
+  document.getElementById('loginIndicator').className =
+    `w-3 h-3 rounded-full ${loggedIn ? 'bg-green-500' : 'bg-gray-300'}`;
+
+  document.getElementById('loginText').textContent = loggedIn
+    ? `Connected as ${userProfile.name || (userProfile.given_name + ' ' + (userProfile.family_name || ''))}`
+    : 'Not connected to LinkedIn';
+
+  // Publish needs LinkedIn auth. Everything else only needs Gemini key.
+  const el = document.getElementById('publishBtn');
+  if (el) el.disabled = !loggedIn;
+
+  ['dashboardBtn', 'analyzeProfileBtn', 'networkStrategyBtn', 'connectionMsgBtn',
+   'postIdeasBtn', 'improvePostBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = false;
+  });
+
+  document.getElementById('profileEmpty').classList.toggle('hidden', loggedIn);
+  document.getElementById('profileData').classList.toggle('hidden', !loggedIn);
+
+  if (loggedIn && userProfile) {
+    document.getElementById('profilePic').src = userProfile.picture || '';
+    document.getElementById('profileName').textContent =
+      userProfile.name || `${userProfile.given_name || ''} ${userProfile.family_name || ''}`;
+    document.getElementById('profileEmail').textContent = userProfile.email || '';
+    document.getElementById('profileSub').textContent = `LinkedIn ID: ${userProfile.sub || ''}`;
+
+    const headlineEl = document.getElementById('profileHeadline');
+    const roleEl = document.getElementById('profileRole');
+    if (userProfile.headline && !headlineEl.value) headlineEl.value = userProfile.headline;
+    if (userProfile.currentRole && !roleEl.value) roleEl.value = userProfile.currentRole;
+  }
+}
+
+// ─── AI helpers ──────────────────────────────────────────────────────────────
+async function callGemini(prompt) {
+  const apiKey = localStorage.getItem('gemini_key') || document.getElementById('geminiKey').value.trim();
+  if (!apiKey) throw new Error('Missing Gemini API Key — add it in Settings');
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.7, maxOutputTokens: 8192 },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'Gemini API error');
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response received';
+}
+
+function profileContext() {
+  const name = userProfile?.name || userProfile?.given_name || '';
+  const headline = document.getElementById('profileHeadline')?.value.trim() || '';
+  const about = document.getElementById('profileAbout')?.value.trim() || '';
+  const role = document.getElementById('profileRole')?.value.trim() || '';
+  const goals = document.getElementById('profileGoals')?.value.trim() || '';
+
+  let ctx = `Name: ${name}`;
+  if (headline) ctx += `\nHeadline: ${headline}`;
+  if (role) ctx += `\nCurrent Role: ${role}`;
+  if (about) ctx += `\nAbout Section:\n${about}`;
+  if (goals) ctx += `\nLinkedIn Goals: ${goals}`;
+  return ctx;
+}
+
+// ─── Bookmarklet import ───────────────────────────────────────────────────────
+function buildBookmarklet() {
+  const code = `(function(){
+var headline='',about='',role='';
+var h1=document.querySelector('h1');
+if(h1){
+  var introEl=h1.closest('[class*="card"],[class*="top"],[class*="intro"],main,article')||h1.parentElement;
+  var introText=introEl?introEl.innerText:'';
+  var lines=introText.split('\\n').map(function(l){return l.trim();}).filter(function(l){return l.length>2;});
+  var h1idx=lines.findIndex(function(l){return l.includes(h1.innerText.trim().slice(0,20));});
+  if(h1idx>=0&&lines[h1idx+1])headline=lines[h1idx+1];
+  if(!headline&&lines.length>1)headline=lines[1];
+}
+var sections=document.querySelectorAll('section,div[class*="section"],div[class*="profile-section"]');
+sections.forEach(function(sec){
+  var text=sec.innerText||'';
+  var trimmed=text.trim();
+  var firstLine=trimmed.split('\\n')[0].trim().toLowerCase();
+  if(!about&&(firstLine==='about'||firstLine.startsWith('about')&&firstLine.length<10)){
+    var bodyLines=trimmed.split('\\n').filter(function(l){return l.trim().length>0;});
+    var start=1;
+    while(start<bodyLines.length&&bodyLines[start].trim().length<15)start++;
+    var chunk=bodyLines.slice(start).join('\\n').trim();
+    if(chunk.length>20&&chunk.length<8000)about=chunk;
+  }
+  if(!role&&(firstLine==='experience'||firstLine.startsWith('experience')&&firstLine.length<15)){
+    var expLines=trimmed.split('\\n').filter(function(l){return l.trim().length>2;});
+    for(var i=1;i<expLines.length;i++){
+      var l=expLines[i].trim();
+      if(l.length>3&&l.length<150&&!/^(show|see|add|edit|experience|present|full.time|part.time|contract|\\d{4})/i.test(l)){role=l;break;}
+    }
+  }
+});
+
+var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
+var found=[headline&&'Headline',about&&'About',role&&'Role'].filter(Boolean);
+
+var ov=document.createElement('div');
+ov.setAttribute('style','position:fixed!important;top:16px!important;left:50%!important;transform:translateX(-50%)!important;background:#1e1b4b!important;color:#fff!important;border-radius:14px!important;padding:22px!important;max-width:480px!important;width:90%!important;z-index:2147483647!important;box-shadow:0 20px 60px rgba(0,0,0,.7)!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;');
+var html='<div style="font-weight:700!important;font-size:15px!important;margin-bottom:10px!important;">LinkedIn AI Assistant v8</div>';
+var statusDiv='<div id="_li_st" style="font-size:13px!important;margin-bottom:14px!important;padding:10px!important;border-radius:8px!important;background:#312e81!important;"></div>';
+if(!found.length){
+  html+='<div style="color:#fbbf24!important;font-size:13px!important;">⚠️ Nothing found — make sure you are on your own LinkedIn profile page (linkedin.com/in/yourname)</div>';
+}else{
+  html+=statusDiv;
+  html+='<textarea id="_li_ta" style="position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;" readonly></textarea>';
+  html+='<div style="font-size:11px!important;color:#6366f1!important;margin-top:12px!important;">Found: '+found.join(', ')+'</div>';
+}
+html+='<div style="text-align:right!important;margin-top:12px!important;"><span id="_li_x" style="font-size:12px!important;color:#818cf8!important;cursor:pointer!important;">✕ Close</span></div>';
+ov.innerHTML=html;
+document.body.appendChild(ov);
+
+if(found.length){
+  var st=document.getElementById('_li_st');
+  var ta=document.getElementById('_li_ta');
+  ta.value=payload;
+  /* Try clipboard write — two methods */
+  var done=false;
+  function markCopied(){
+    if(done)return;done=true;
+    st.style.color='#86efac';
+    st.innerHTML='<strong>✓ Copied!</strong> Switch to the app tab and press <strong>Cmd+V</strong> in the paste box, then click <strong>Apply ✓</strong>';
+  }
+  function markFailed(){
+    if(done)return;done=true;
+    st.style.color='#fbbf24';
+    st.innerHTML='Could not auto-copy. Click the text below, press Cmd+A then Cmd+C:<br><textarea style="width:100%!important;margin-top:6px!important;font-size:10px!important;font-family:monospace!important;background:#1e1b4b!important;color:#a5b4fc!important;border:1px solid #4f46e5!important;border-radius:6px!important;padding:6px!important;box-sizing:border-box!important;height:60px!important;" readonly>'+payload+'</textarea>';
+  }
+  try{
+    navigator.clipboard.writeText(payload).then(markCopied).catch(function(){
+      ta.select();document.execCommand('copy')?markCopied():markFailed();
+    });
+  }catch(e){
+    ta.select();document.execCommand('copy')?markCopied():markFailed();
+  }
+}
+document.getElementById('_li_x').onclick=function(){ov.remove();};
+})();`;
+  const link = document.getElementById('bookmarkletLink');
+  if (link) link.href = 'javascript:' + encodeURIComponent(code);
+}
+
+function applyPastedProfile() {
+  const statusEl = document.getElementById('importStatus');
+  const raw = document.getElementById('pasteInput').value.trim();
+  statusEl.classList.add('hidden');
+
+  if (!raw) {
+    statusEl.className = 'text-sm text-amber-600';
+    statusEl.textContent = 'Paste the copied text first (LIIMPORT:...).';
+    statusEl.classList.remove('hidden');
+    return;
+  }
+
+  try {
+    const idx = raw.indexOf('LIIMPORT:');
+    if (idx === -1) throw new Error('missing LIIMPORT prefix');
+    const b64 = raw.slice(idx + 9).trim();
+    const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    const ids = {headline:'profileHeadline', about:'profileAbout', role:'profileRole'};
+    const imported = [];
+    ['headline','about','role'].forEach(key => {
+      if (data[key]) {
+        const el = document.getElementById(ids[key]);
+        el.value = data[key];
+        el.style.background = '#f0fdf4';
+        setTimeout(() => { el.style.background = ''; }, 2500);
+        imported.push(key.charAt(0).toUpperCase() + key.slice(1));
+      }
+    });
+    document.getElementById('pasteInput').value = '';
+    statusEl.className = 'text-sm text-green-600 font-semibold';
+    statusEl.textContent = imported.length
+      ? `✓ Imported: ${imported.join(', ')} — scroll down to see the filled fields`
+      : '⚠️ Bookmarklet ran but found no data on the page';
+    statusEl.classList.remove('hidden');
+  } catch(e) {
+    statusEl.className = 'text-sm text-red-500';
+    statusEl.textContent = `Error: ${e.message}. Copy the full LIIMPORT:... text from the bookmarklet panel.`;
+    statusEl.classList.remove('hidden');
+  }
+}
+
+// ─── Profile Analysis ─────────────────────────────────────────────────────────
+async function analyzeProfile() {
+  const btn = document.getElementById('analyzeProfileBtn');
+  const result = document.getElementById('profileAnalysisResult');
+  const text = document.getElementById('profileAnalysisText');
+
+  const ctx = profileContext();
+  if (ctx.trim() === `Name: ${userProfile?.name || ''}`) {
+    alert('Please fill in at least your Headline or About section to get a personalized analysis');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = 'Analyzing...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `You are a senior LinkedIn strategist specializing in B2B sales and personal branding. Analyze the following profile and provide **specific, actionable** recommendations — no generic advice.
+
+Profile details:
+${ctx}
+
+Provide a deep analysis including:
+## 1. Headline Analysis
+Evaluate the current headline — what works, what's missing, is it focused enough on the target audience.
+
+## 2. Three Improved Headline Options
+Write 3 specific headlines that reflect the unique value proposition for the target audience.
+
+## 3. About Section Analysis
+What works, what's missing, how to improve the structure and messaging.
+
+## 4. Content Recommendations
+3-5 specific post topics that fit this person's field and goals, with a clear reason why each will perform well.
+
+## 5. Overall Score
+Score from 1 to 10 with a clear explanation of what needs to change to reach a 10.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    setAiResult('profileAnalysisText', answer);
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `Error: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Analyze Profile';
+  }
+}
+
+// ─── Network Strategy ─────────────────────────────────────────────────────────
+async function generateNetworkStrategy() {
+  const target = document.getElementById('networkTarget').value.trim();
+  const btn = document.getElementById('networkStrategyBtn');
+  const result = document.getElementById('networkStrategyResult');
+  const text = document.getElementById('networkStrategyText');
+
+  btn.disabled = true;
+  btn.innerHTML = 'Building...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `You are a LinkedIn networking expert specializing in B2B relationship building. Create a detailed network growth strategy.
+
+User profile:
+${profileContext()}
+${target ? `Target audience: ${target}` : ''}
+
+Build a strategic plan including:
+## 1. Target Personas
+Specific types of people to connect with and why each matters for their goals.
+
+## 2. How to Find Them
+LinkedIn searches, filters, groups, and events to use — be specific with search terms.
+
+## 3. Outreach Cadence
+Recommended number of connection requests per day/week, and best times to send them.
+
+## 4. Content to Attract the Network
+Topics and post formats that will draw in the right people organically.
+
+## 5. Success Metrics
+How to measure whether the strategy is working — specific KPIs.
+
+## 6. 30/60/90-Day Action Plan
+Specific steps for each phase with clear milestones.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    setAiResult('networkStrategyText', answer);
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `Error: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Build Network Strategy';
+  }
+}
+
+// ─── Connection Message ───────────────────────────────────────────────────────
+async function generateConnectionMessage() {
+  const personInfo = document.getElementById('connectionPersonInfo').value.trim();
+  const reason = document.getElementById('connectionReason').value.trim();
+  const btn = document.getElementById('connectionMsgBtn');
+  const result = document.getElementById('connectionMsgResult');
+  const text = document.getElementById('connectionMsgText');
+
+  if (!personInfo) { alert('Please enter details about the person you want to connect with'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = 'Generating...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `Write a LinkedIn connection request message in English (max 300 characters — LinkedIn's limit).
+
+Sender:
+${profileContext()}
+
+The person to connect with:
+${personInfo}
+
+Reason for connecting: ${reason || 'not specified'}
+
+Write 3 versions of the connection message — each short, personal, and credible. Number each one.
+Make sure every message is under 300 characters. Do not add any explanation outside the 3 messages.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    setAiResult('connectionMsgText', answer);
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `Error: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Connection Message';
+  }
+}
+
+// ─── Post Ideas ───────────────────────────────────────────────────────────────
+async function generatePostIdeas() {
+  const topic = document.getElementById('postTopic').value.trim();
+  const style = document.getElementById('postStyle').value;
+  const btn = document.getElementById('postIdeasBtn');
+  const result = document.getElementById('postIdeasResult');
+  const text = document.getElementById('postIdeasText');
+
+  btn.disabled = true;
+  btn.innerHTML = 'Generating...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  result.classList.add('hidden');
+
+  const prompt = `You are a LinkedIn content strategist. Generate 5 high-performing post ideas in English.
+
+Author profile:
+${profileContext()}
+${topic ? `Topic: ${topic}` : ''}
+Desired style: ${style}
+
+For each idea provide:
+- **Hook** (first 1-2 lines that stop the scroll)
+- **Post structure** (key points to cover)
+- **Call to Action** (a closing question that drives comments)
+
+Separate ideas with blank lines. Write in a direct, punchy style that performs well on LinkedIn.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    setAiResult('postIdeasText', answer);
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `Error: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Generate Ideas';
+  }
+}
+
+// ─── Post Composer ────────────────────────────────────────────────────────────
+function updateCharCounter() {
+  const len = document.getElementById('postContent').value.length;
+  const counter = document.getElementById('charCounter');
+  counter.textContent = `${len} / 3000`;
+  counter.className = 'char-counter ' + (len > 3000 ? 'over' : len > 2500 ? 'warn' : 'text-gray-400');
+}
+
+async function improvePost() {
+  const content = document.getElementById('postContent').value.trim();
+  if (!content) { alert('Write a post first'); return; }
+
+  const btn = document.getElementById('improvePostBtn');
+  const result = document.getElementById('improvedPostResult');
+  const text = document.getElementById('improvedPostText');
+
+  btn.disabled = true;
+  btn.innerHTML = '🪄 Improving...';
+  result.classList.add('hidden');
+
+  const prompt = `Improve the following LinkedIn post. Keep the core idea but enhance:
+- The hook (strong first line that stops scrolling)
+- The writing (shorter sentences, more direct)
+- The structure (short paragraphs, white space between ideas)
+- The closing CTA (a clear question or call to action)
+- Max 2800 characters
+
+Original post:
+${content}
+
+Return only the improved post, no explanations.`;
+
+  try {
+    const answer = await callGemini(prompt);
+    setAiResult('improvedPostText', answer);
+    result.classList.remove('hidden');
+  } catch (err) {
+    text.textContent = `Error: ${err.message}`;
+    result.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🪄 Improve with AI';
+  }
+}
+
+function useImprovedPost() {
+  const improved = document.getElementById('improvedPostText').textContent;
+  document.getElementById('postContent').value = improved;
+  updateCharCounter();
+  document.getElementById('improvedPostResult').classList.add('hidden');
+}
+
+function clearPost() {
+  document.getElementById('postContent').value = '';
+  updateCharCounter();
+  document.getElementById('improvedPostResult').classList.add('hidden');
+  document.getElementById('publishStatus').classList.add('hidden');
+}
+
+async function publishPost() {
+  const text = document.getElementById('postContent').value.trim();
+  if (!text) { alert('Write a post first'); return; }
+  if (text.length > 3000) { alert('Post is too long — maximum 3000 characters'); return; }
+  if (!userProfile?.sub) { alert('Could not retrieve your profile. Please reconnect to LinkedIn.'); return; }
+
+  const serverUrl = localStorage.getItem('server_url') || 'http://localhost:3000';
+  const btn = document.getElementById('publishBtn');
+  const statusEl = document.getElementById('publishStatus');
+
+  btn.disabled = true;
+  btn.innerHTML = '🚀 Publishing...<span class="spinner" style="border-color:#fff;border-top-color:transparent"></span>';
+  statusEl.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${serverUrl}/api/linkedin/post`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        text,
+        authorUrn: `urn:li:person:${userProfile.sub}`,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(JSON.stringify(data.error));
+
+    statusEl.className = 'p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-sm';
+    statusEl.textContent = '✓ Post published successfully on LinkedIn!';
+    statusEl.classList.remove('hidden');
+
+    addToPostHistory(text);
+    clearPost();
+  } catch (err) {
+    statusEl.className = 'p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm';
+    statusEl.textContent = `Publish error: ${err.message}`;
+    statusEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '🚀 Publish to LinkedIn';
+  }
+}
+
+// ─── Drafts ───────────────────────────────────────────────────────────────────
+function saveDraft() {
+  const text = document.getElementById('postContent').value.trim();
+  if (!text) { alert('Write something first before saving a draft'); return; }
+
+  const nameInput = document.getElementById('draftName');
+  const name = nameInput.value.trim() || `Draft ${new Date().toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}`;
+
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  drafts.unshift({ name, text, date: new Date().toISOString() });
+  if (drafts.length > 30) drafts.pop();
+  localStorage.setItem('post_drafts', JSON.stringify(drafts));
+
+  nameInput.value = '';
+  const msg = document.getElementById('draftSavedMsg');
+  msg.classList.remove('hidden');
+  setTimeout(() => msg.classList.add('hidden'), 2000);
+  renderDrafts();
+}
+
+function loadDraft(index) {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  if (drafts[index]) {
+    document.getElementById('postContent').value = drafts[index].text;
+    updateCharCounter();
+    document.getElementById('postContent').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+function deleteDraft(index) {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  drafts.splice(index, 1);
+  localStorage.setItem('post_drafts', JSON.stringify(drafts));
+  renderDrafts();
+}
+
+function renameDraft(index) {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  const newName = prompt('New name for this draft:', drafts[index]?.name || '');
+  if (newName && newName.trim()) {
+    drafts[index].name = newName.trim();
+    localStorage.setItem('post_drafts', JSON.stringify(drafts));
+    renderDrafts();
+  }
+}
+
+function clearAllDrafts() {
+  if (confirm('Delete all saved drafts?')) {
+    localStorage.removeItem('post_drafts');
+    renderDrafts();
+  }
+}
+
+function renderDrafts() {
+  const drafts = JSON.parse(localStorage.getItem('post_drafts') || '[]');
+  const container = document.getElementById('draftsList');
+  if (!drafts.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm">No drafts saved yet</p>';
+    return;
+  }
+  container.innerHTML = drafts.map((d, i) => `
+    <div class="post-history-item space-y-1">
+      <div class="flex items-center justify-between gap-2">
+        <span class="font-medium text-gray-800 text-sm">${d.name}</span>
+        <span class="text-xs text-gray-400 whitespace-nowrap">${new Date(d.date).toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}</span>
+      </div>
+      <p class="text-gray-500 text-sm">${d.text.slice(0, 100)}${d.text.length > 100 ? '...' : ''}</p>
+      <div class="flex gap-3 mt-1">
+        <button onclick="loadDraft(${i})" class="text-indigo-500 text-xs hover:underline">Load</button>
+        <button onclick="renameDraft(${i})" class="text-gray-400 text-xs hover:underline">Rename</button>
+        <button onclick="deleteDraft(${i})" class="text-red-400 text-xs hover:underline">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ─── Post History ─────────────────────────────────────────────────────────────
+function addToPostHistory(text) {
+  const history = JSON.parse(localStorage.getItem('post_history') || '[]');
+  history.unshift({ text, date: new Date().toISOString() });
+  if (history.length > 20) history.pop();
+  localStorage.setItem('post_history', JSON.stringify(history));
+  renderPostHistory();
+}
+
+function renderPostHistory() {
+  const history = JSON.parse(localStorage.getItem('post_history') || '[]');
+  const container = document.getElementById('postHistory');
+  if (!history.length) {
+    container.innerHTML = '<p class="text-gray-400 text-sm">No posts yet</p>';
+    return;
+  }
+  container.innerHTML = history.map((item, i) => `
+    <div class="post-history-item">
+      <p class="text-xs text-gray-400 mb-1">${new Date(item.date).toLocaleString('en-US')}</p>
+      <p class="text-gray-700">${item.text.slice(0, 120)}${item.text.length > 120 ? '...' : ''}</p>
+      <button onclick="reusePost(${i})" class="text-indigo-500 text-xs mt-1 hover:underline">Reuse this post</button>
+    </div>
+  `).join('');
+}
+
+function reusePost(index) {
+  const history = JSON.parse(localStorage.getItem('post_history') || '[]');
+  if (history[index]) {
+    document.getElementById('postContent').value = history[index].text;
+    updateCharCounter();
+    showTab('post');
+  }
+}
+
+function clearHistory() {
+  if (confirm('Delete all post history?')) {
+    localStorage.removeItem('post_history');
+    renderPostHistory();
+  }
+}
+
+// ─── Clipboard ────────────────────────────────────────────────────────────────
+function copyToClipboard(elementId) {
+  const text = document.getElementById(elementId).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
