@@ -260,18 +260,20 @@
       <h3 class="font-semibold text-gray-700">⚡ Auto-Fill from LinkedIn Page</h3>
       <p class="text-sm text-gray-500">Use the bookmarklet below to automatically import your Headline, About section, and Current Role straight from your LinkedIn profile page.</p>
       <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800 space-y-2">
-        <p class="font-semibold">How to use:</p>
+        <p class="font-semibold">How to use (v8 — one paste only):</p>
         <ol class="list-decimal list-inside space-y-1">
-          <li>Drag the blue button below to your browser's bookmarks bar <em>(one-time)</em></li>
+          <li>Drag the blue button below to your browser's bookmarks bar <em>(one-time setup)</em></li>
           <li>Go to your <a href="https://www.linkedin.com/in/me/" target="_blank" class="underline font-medium">LinkedIn profile page</a></li>
-          <li>Click the bookmarklet — a popup appears with encoded text</li>
-          <li>Select all the text in the popup (Cmd+A) and copy it (Cmd+C)</li>
-          <li>Come back here, paste in the box below, and click <strong>Apply ✓</strong></li>
+          <li>Click the bookmarklet — it <strong>auto-copies</strong> the data and shows "✓ Copied!"</li>
+          <li>Switch back here and press <strong>Cmd+V</strong> in the box below, then click <strong>Apply ✓</strong></li>
         </ol>
       </div>
       <div class="space-y-2">
-        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v7 — drag to bookmarks bar</a>
-        <p class="text-xs text-gray-500 mt-1">The bookmarklet shows your Headline, About, and Role in separate boxes. Copy each one and paste directly into the matching field below.</p>
+        <a id="bookmarkletLink" href="" class="btn btn-linkedin text-sm inline-block" title="Drag this to your bookmarks bar">🔖 LI Importer v8 — drag to bookmarks bar</a>
+        <div class="flex gap-2 mt-2">
+          <textarea id="pasteInput" rows="2" class="input-field text-xs font-mono flex-1" placeholder="Paste here (Cmd+V) after running the bookmarklet…"></textarea>
+          <button onclick="applyPastedProfile()" class="btn btn-green text-sm self-start whitespace-nowrap">Apply ✓</button>
+        </div>
         <span id="importStatus" class="text-sm hidden"></span>
       </div>
     </div>
@@ -951,28 +953,48 @@ sections.forEach(function(sec){
   }
 });
 
-/* Build overlay with 3 separate plain-text fields — no encoding */
-var ov=document.createElement('div');
-ov.setAttribute('style','position:fixed!important;top:10px!important;left:50%!important;transform:translateX(-50%)!important;background:#1e1b4b!important;color:#fff!important;border-radius:14px!important;padding:20px!important;max-width:520px!important;width:92%!important;z-index:2147483647!important;box-shadow:0 20px 60px rgba(0,0,0,.7)!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;max-height:90vh!important;overflow-y:auto!important;');
-function field(label,val,rows){
-  return '<div style="margin-bottom:12px!important;">'
-    +'<div style="font-size:11px!important;color:#a5b4fc!important;margin-bottom:4px!important;font-weight:600!important;">'+label+'</div>'
-    +'<textarea rows="'+rows+'" style="width:100%!important;background:#312e81!important;color:#e0e7ff!important;border:1px solid rgba(255,255,255,.2)!important;border-radius:6px!important;padding:8px!important;font-size:12px!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;resize:vertical!important;" readonly>'+val.replace(/</g,'&lt;')+'</textarea>'
-    +'</div>';
-}
+var payload='LIIMPORT:'+btoa(unescape(encodeURIComponent(JSON.stringify({headline:headline,about:about,role:role}))));
 var found=[headline&&'Headline',about&&'About',role&&'Role'].filter(Boolean);
-var html='<div style="font-weight:700!important;font-size:14px!important;margin-bottom:4px!important;">LinkedIn AI Assistant v7</div>';
+
+var ov=document.createElement('div');
+ov.setAttribute('style','position:fixed!important;top:16px!important;left:50%!important;transform:translateX(-50%)!important;background:#1e1b4b!important;color:#fff!important;border-radius:14px!important;padding:22px!important;max-width:480px!important;width:90%!important;z-index:2147483647!important;box-shadow:0 20px 60px rgba(0,0,0,.7)!important;font-family:Arial,sans-serif!important;box-sizing:border-box!important;');
+var html='<div style="font-weight:700!important;font-size:15px!important;margin-bottom:10px!important;">LinkedIn AI Assistant v8</div>';
+var statusDiv='<div id="_li_st" style="font-size:13px!important;margin-bottom:14px!important;padding:10px!important;border-radius:8px!important;background:#312e81!important;"></div>';
 if(!found.length){
-  html+='<div style="color:#fbbf24!important;font-size:12px!important;margin-bottom:12px!important;">⚠️ Nothing found — make sure you are on your own LinkedIn profile page</div>';
+  html+='<div style="color:#fbbf24!important;font-size:13px!important;">⚠️ Nothing found — make sure you are on your own LinkedIn profile page (linkedin.com/in/yourname)</div>';
 }else{
-  html+='<div style="color:#86efac!important;font-size:12px!important;margin-bottom:12px!important;">✓ Found: '+found.join(', ')+' — copy each field and paste directly into the app</div>';
-  if(headline)html+=field('HEADLINE (paste into "Your LinkedIn Headline")',headline,2);
-  if(role)html+=field('ROLE (paste into "Current Role & Company")',role,2);
-  if(about)html+=field('ABOUT (paste into "Your About Section")',about,5);
+  html+=statusDiv;
+  html+='<textarea id="_li_ta" style="position:absolute!important;left:-9999px!important;width:1px!important;height:1px!important;" readonly></textarea>';
+  html+='<div style="font-size:11px!important;color:#6366f1!important;margin-top:12px!important;">Found: '+found.join(', ')+'</div>';
 }
-html+='<div style="text-align:right!important;"><span id="_li_x" style="font-size:12px!important;color:#818cf8!important;cursor:pointer!important;">✕ Close</span></div>';
+html+='<div style="text-align:right!important;margin-top:12px!important;"><span id="_li_x" style="font-size:12px!important;color:#818cf8!important;cursor:pointer!important;">✕ Close</span></div>';
 ov.innerHTML=html;
 document.body.appendChild(ov);
+
+if(found.length){
+  var st=document.getElementById('_li_st');
+  var ta=document.getElementById('_li_ta');
+  ta.value=payload;
+  /* Try clipboard write — two methods */
+  var done=false;
+  function markCopied(){
+    if(done)return;done=true;
+    st.style.color='#86efac';
+    st.innerHTML='<strong>✓ Copied!</strong> Switch to the app tab and press <strong>Cmd+V</strong> in the paste box, then click <strong>Apply ✓</strong>';
+  }
+  function markFailed(){
+    if(done)return;done=true;
+    st.style.color='#fbbf24';
+    st.innerHTML='Could not auto-copy. Click the text below, press Cmd+A then Cmd+C:<br><textarea style="width:100%!important;margin-top:6px!important;font-size:10px!important;font-family:monospace!important;background:#1e1b4b!important;color:#a5b4fc!important;border:1px solid #4f46e5!important;border-radius:6px!important;padding:6px!important;box-sizing:border-box!important;height:60px!important;" readonly>'+payload+'</textarea>';
+  }
+  try{
+    navigator.clipboard.writeText(payload).then(markCopied).catch(function(){
+      ta.select();document.execCommand('copy')?markCopied():markFailed();
+    });
+  }catch(e){
+    ta.select();document.execCommand('copy')?markCopied():markFailed();
+  }
+}
 document.getElementById('_li_x').onclick=function(){ov.remove();};
 })();`;
   const link = document.getElementById('bookmarkletLink');
