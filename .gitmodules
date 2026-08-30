@@ -1,0 +1,3 @@
+[submodule "whatsapp-gateway"]
+	path = whatsapp-gateway
+	url = https://github.com/rmyndharis/OpenWA.git

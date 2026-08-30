@@ -1,0 +1,28 @@
+# Runs the competitor-analysis WhatsApp bridge alongside the OpenWA gateway.
+#
+# Start the gateway first (creates the "openwa-network" this file attaches to):
+#   docker compose -f whatsapp-gateway/docker-compose.dev.yml up -d --build
+#
+# Then start the bridge:
+#   docker compose -f docker-compose.whatsapp-bot.yml up -d --build
+#
+# See WHATSAPP_SETUP.md for the full step-by-step (creating a session, scanning
+# the QR code, and registering the webhook that points here).
+
+services:
+  whatsapp-bot:
+    build:
+      context: ./whatsapp-bot
+    container_name: whatsapp-bot
+    restart: unless-stopped
+    env_file:
+      - ./whatsapp-bot/.env
+    ports:
+      - '127.0.0.1:${WHATSAPP_BOT_PORT:-3000}:3000'
+    networks:
+      - default
+
+networks:
+  default:
+    name: openwa-network
+    external: true
